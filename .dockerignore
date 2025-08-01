@@ -64,3 +64,5 @@ README.md
 # Config files (will be mounted as volumes)
 configs/
 discord_bot.log
+
+*.log
