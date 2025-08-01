@@ -21,7 +21,6 @@ services:
       - ./configs:/app/configs
       - ./downloads:/app/downloads
       - ./logs:/app/logs
-      - ./discord_bot.log:/app/discord_bot.log
     
     # Network configuration
     networks:

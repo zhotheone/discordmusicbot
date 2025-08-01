@@ -36,6 +36,17 @@ RUN chmod +x main.py
 # Create a non-root user for security
 RUN useradd --create-home --shell /bin/bash app && \
     chown -R app:app /app
+
+# Create an entrypoint script to fix permissions at runtime
+RUN echo '#!/bin/bash\n\
+# Fix permissions for mounted directories\n\
+if [ -d "/app/logs" ]; then\n\
+    sudo chown -R app:app /app/logs 2>/dev/null || true\n\
+fi\n\
+# Run the main application\n\
+exec python main.py' > /app/entrypoint.sh && \
+    chmod +x /app/entrypoint.sh
+
 USER app
 
 # Health check

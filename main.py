@@ -2,7 +2,6 @@
 import asyncio
 import logging
 import os
-from logging.handlers import RotatingFileHandler
 
 import discord
 from discord.ext import commands
@@ -16,7 +15,7 @@ COGS_TO_LOAD = [
 ]
 
 def setup_logging():
-    """Configure logging for console and file output."""
+    """Configure logging for console output only."""
     log = logging.getLogger()
     log.setLevel(logging.INFO)
     formatter = logging.Formatter(
@@ -28,15 +27,6 @@ def setup_logging():
     console_handler = logging.StreamHandler()
     console_handler.setFormatter(formatter)
     log.addHandler(console_handler)
-    # File Handler
-    file_handler = RotatingFileHandler(
-        'discord_bot.log',
-        maxBytes=5 * 1024 * 1024,
-        backupCount=2,
-        encoding='utf-8'
-    )
-    file_handler.setFormatter(formatter)
-    log.addHandler(file_handler)
     logging.info("Logging configured successfully.")
 
 async def main():
