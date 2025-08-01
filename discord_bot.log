@@ -139,3 +139,207 @@ KeyError: 1400228444100497428
 [2025-08-01 19:10:23] [INFO    ] cogs.playback_cog: Guild 1400228444100497428 - Generated FFMPEG options: {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', 'options': '-vn'}
 [2025-08-01 19:13:00] [INFO    ] discord.player: ffmpeg process 23662 successfully terminated with return code of 0.
 [2025-08-01 19:13:02] [INFO    ] cogs.playback_cog: Finished playing song in guild 1400228444100497428.
+[2025-08-01 20:10:07] [INFO    ] root: Logging configured successfully.
+[2025-08-01 20:10:07] [INFO    ] root: Successfully loaded cog: cogs.playback_cog
+[2025-08-01 20:10:07] [INFO    ] root: Successfully loaded cog: cogs.effects_cog
+[2025-08-01 20:10:07] [INFO    ] discord.client: logging in using static token
+[2025-08-01 20:10:08] [INFO    ] discord.gateway: Shard ID None has connected to Gateway (Session ID: 5e7ec1fd78b8e238cde9edb350bdb2ac).
+[2025-08-01 20:10:10] [INFO    ] root: Logged in as notamusicbot
+[2025-08-01 20:10:10] [INFO    ] root: Syncing commands to all guilds...
+[2025-08-01 20:10:10] [INFO    ] root: Bot is ready to rock!
+[2025-08-01 20:10:22] [INFO    ] discord.voice_state: Connecting to voice...
+[2025-08-01 20:10:22] [INFO    ] discord.voice_state: Starting voice handshake... (connection attempt 1)
+[2025-08-01 20:10:22] [INFO    ] discord.voice_state: Voice handshake complete. Endpoint found: warsaw10125.discord.media
+[2025-08-01 20:10:22] [INFO    ] discord.voice_state: Voice connection complete.
+[2025-08-01 20:10:27] [INFO    ] cogs.playback_cog: Preparing to play 'Кабанчик' in guild 1400228444100497428.
+[2025-08-01 20:10:27] [INFO    ] cogs.playback_cog: Guild 1400228444100497428 - Generated FFMPEG options: {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', 'options': '-vn'}
+[2025-08-01 20:10:27] [ERROR   ] cogs.playback_cog: Failed to create FFmpeg player in guild 1400228444100497428.
+Traceback (most recent call last):
+  File "/home/kostiantynboiar/programming/others/discordbot/discordmusicbot/cogs/playback_cog.py", line 151, in _play_next
+    player = discord.FFmpegPCMAudio(song_info['url'], **ffmpeg_options)
+  File "/home/kostiantynboiar/programming/others/discordbot/discordmusicbot/.venv/lib/python3.10/site-packages/discord/player.py", line 345, in __init__
+    super().__init__(source, executable=executable, args=args, **subprocess_kwargs)
+  File "/home/kostiantynboiar/programming/others/discordbot/discordmusicbot/.venv/lib/python3.10/site-packages/discord/player.py", line 182, in __init__
+    self._process = self._spawn_process(args, **kwargs)
+  File "/home/kostiantynboiar/programming/others/discordbot/discordmusicbot/.venv/lib/python3.10/site-packages/discord/player.py", line 208, in _spawn_process
+    raise ClientException(executable + ' was not found.') from None
+discord.errors.ClientException: ffmpeg was not found.
+[2025-08-01 20:10:42] [INFO    ] root: Bot shutting down by request.
+[2025-08-01 19:13:47] [INFO    ] root: Logging configured successfully.
+[2025-08-01 19:13:47] [INFO    ] root: Successfully loaded cog: cogs.playback_cog
+[2025-08-01 19:13:47] [INFO    ] root: Successfully loaded cog: cogs.effects_cog
+[2025-08-01 19:13:47] [INFO    ] discord.client: logging in using static token
+[2025-08-01 19:13:48] [INFO    ] discord.gateway: Shard ID None has connected to Gateway (Session ID: 4abe1e9dd21c9c7317432ccdd62fd0a2).
+[2025-08-01 19:13:50] [INFO    ] root: Logged in as notamusicbot
+[2025-08-01 19:13:50] [INFO    ] root: Syncing commands to all guilds...
+[2025-08-01 19:13:51] [INFO    ] root: Bot is ready to rock!
+[2025-08-01 19:14:04] [INFO    ] discord.voice_state: Connecting to voice...
+[2025-08-01 19:14:04] [INFO    ] discord.voice_state: Starting voice handshake... (connection attempt 1)
+[2025-08-01 19:14:05] [INFO    ] discord.voice_state: Voice handshake complete. Endpoint found: warsaw10125.discord.media
+[2025-08-01 19:14:05] [INFO    ] discord.voice_state: Voice connection complete.
+[2025-08-01 19:14:10] [INFO    ] cogs.playback_cog: Preparing to play 'Кабанчик' in guild 1400228444100497428.
+[2025-08-01 19:14:10] [INFO    ] cogs.playback_cog: Guild 1400228444100497428 - Generated FFMPEG options: {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', 'options': '-vn'}
+[2025-08-01 19:14:33] [INFO    ] cogs.effects_cog: 'george26.qs' attempting to toggle filter 'nightcore' in guild 1400228444100497428
+[2025-08-01 19:14:35] [INFO    ] discord.player: ffmpeg process 17 has not terminated. Waiting to terminate...
+[2025-08-01 19:14:35] [INFO    ] discord.player: ffmpeg process 17 should have terminated with a return code of -9.
+[2025-08-01 19:14:35] [INFO    ] cogs.playback_cog: Finished playing song in guild 1400228444100497428.
+[2025-08-01 19:14:48] [INFO    ] cogs.playback_cog: Preparing to play 'Кабанчик' in guild 1400228444100497428.
+[2025-08-01 19:14:48] [INFO    ] cogs.playback_cog: Guild 1400228444100497428 - Generated FFMPEG options: {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', 'options': '-vn -af "atempo=1.3,asetrate=44100*1.3,bass=g=5"'}
+[2025-08-01 19:16:57] [INFO    ] discord.player: ffmpeg process 48 successfully terminated with return code of 0.
+[2025-08-01 19:16:57] [INFO    ] cogs.playback_cog: Finished playing song in guild 1400228444100497428.
+[2025-08-01 19:16:58] [INFO    ] cogs.playback_cog: Preparing to play 'Кабанчик' in guild 1400228444100497428.
+[2025-08-01 19:16:58] [INFO    ] cogs.playback_cog: Guild 1400228444100497428 - Generated FFMPEG options: {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', 'options': '-vn -af "atempo=1.3,asetrate=44100*1.3,bass=g=5"'}
+[2025-08-01 19:17:35] [INFO    ] discord.player: ffmpeg process 102 has not terminated. Waiting to terminate...
+[2025-08-01 19:17:35] [INFO    ] discord.player: ffmpeg process 102 should have terminated with a return code of -9.
+[2025-08-01 19:17:35] [INFO    ] cogs.playback_cog: Finished playing song in guild 1400228444100497428.
+[2025-08-01 19:17:35] [INFO    ] discord.voice_state: The voice handshake is being terminated for Channel ID 1400228444566061224 (Guild ID 1400228444100497428)
+[2025-08-01 19:17:35] [ERROR   ] asyncio: Task exception was never retrieved
+future: <Task finished name='Task-164' coro=<PlaybackCog.after_playback() done, defined at /app/cogs/playback_cog.py:63> exception=KeyError(1400228444100497428)>
+Traceback (most recent call last):
+  File "/app/cogs/playback_cog.py", line 71, in after_playback
+    await self._play_next(interaction)
+  File "/app/cogs/playback_cog.py", line 89, in _play_next
+    await self._cleanup_now_playing(guild_id)
+  File "/app/cogs/playback_cog.py", line 84, in _cleanup_now_playing
+    del self.now_playing_messages[guild_id]
+KeyError: 1400228444100497428
+[2025-08-01 19:21:10] [INFO    ] root: Logging configured successfully.
+[2025-08-01 19:21:10] [INFO    ] root: Successfully loaded cog: cogs.playback_cog
+[2025-08-01 19:21:10] [INFO    ] root: Successfully loaded cog: cogs.effects_cog
+[2025-08-01 19:21:10] [INFO    ] root: Successfully loaded cog: cogs.advanced_effects_cog
+[2025-08-01 19:21:10] [INFO    ] discord.client: logging in using static token
+[2025-08-01 19:21:11] [INFO    ] discord.gateway: Shard ID None has connected to Gateway (Session ID: 0c315d8bd04be0a96221b48f6e2bcadc).
+[2025-08-01 19:21:13] [INFO    ] root: Logged in as notamusicbot
+[2025-08-01 19:21:13] [INFO    ] root: Syncing commands to all guilds...
+[2025-08-01 19:21:13] [INFO    ] root: Bot is ready to rock!
+[2025-08-01 19:23:39] [INFO    ] discord.voice_state: Connecting to voice...
+[2025-08-01 19:23:39] [INFO    ] discord.voice_state: Starting voice handshake... (connection attempt 1)
+[2025-08-01 19:23:40] [INFO    ] discord.voice_state: Voice handshake complete. Endpoint found: warsaw10125.discord.media
+[2025-08-01 19:23:40] [INFO    ] discord.voice_state: Voice connection complete.
+[2025-08-01 19:23:46] [INFO    ] cogs.playback_cog: Preparing to play 'А ты топи топи тапочку в пол - ТРЕК БОМБА 2020!' in guild 1400228444100497428.
+[2025-08-01 19:23:46] [INFO    ] cogs.playback_cog: Guild 1400228444100497428 - Generated FFMPEG options: {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', 'options': '-vn -af "atempo=1.3,asetrate=44100*1.3,bass=g=5"'}
+[2025-08-01 19:23:46] [INFO    ] cogs.playback_cog: Guild 1400228444100497428 - Active filters: atempo=1.3,asetrate=44100*1.3,bass=g=5
+[2025-08-01 19:24:32] [INFO    ] discord.player: ffmpeg process 41 has not terminated. Waiting to terminate...
+[2025-08-01 19:24:32] [INFO    ] discord.player: ffmpeg process 41 should have terminated with a return code of -9.
+[2025-08-01 19:24:32] [INFO    ] cogs.playback_cog: Finished playing song in guild 1400228444100497428.
+[2025-08-01 19:24:32] [INFO    ] discord.voice_state: The voice handshake is being terminated for Channel ID 1400228444566061224 (Guild ID 1400228444100497428)
+[2025-08-01 19:24:32] [ERROR   ] asyncio: Task exception was never retrieved
+future: <Task finished name='Task-92' coro=<PlaybackCog.after_playback() done, defined at /app/cogs/playback_cog.py:80> exception=KeyError(1400228444100497428)>
+Traceback (most recent call last):
+  File "/app/cogs/playback_cog.py", line 88, in after_playback
+    await self._play_next(interaction)
+  File "/app/cogs/playback_cog.py", line 106, in _play_next
+    await self._cleanup_now_playing(guild_id)
+  File "/app/cogs/playback_cog.py", line 101, in _cleanup_now_playing
+    del self.now_playing_messages[guild_id]
+KeyError: 1400228444100497428
+[2025-08-01 19:24:36] [INFO    ] cogs.effects_cog: 'opezdalya' attempting to toggle filter 'nightcore' in guild 1400228444100497428
+[2025-08-01 19:24:46] [INFO    ] discord.voice_state: Connecting to voice...
+[2025-08-01 19:24:46] [INFO    ] discord.voice_state: Starting voice handshake... (connection attempt 1)
+[2025-08-01 19:24:46] [INFO    ] discord.voice_state: Voice handshake complete. Endpoint found: warsaw10125.discord.media
+[2025-08-01 19:24:47] [INFO    ] discord.voice_state: Voice connection complete.
+[2025-08-01 19:24:51] [INFO    ] cogs.playback_cog: Preparing to play 'А ты топи топи тапочку в пол - ТРЕК БОМБА 2020!' in guild 1400228444100497428.
+[2025-08-01 19:24:51] [INFO    ] cogs.playback_cog: Guild 1400228444100497428 - Generated FFMPEG options: {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', 'options': '-vn -af "apulsator=hz=0.2,overdrive=gain=5:colour=20"'}
+[2025-08-01 19:24:51] [INFO    ] cogs.playback_cog: Guild 1400228444100497428 - Active filters: apulsator=hz=0.2,overdrive=gain=5:colour=20
+[2025-08-01 19:24:51] [INFO    ] discord.player: ffmpeg process 86 successfully terminated with return code of 1.
+[2025-08-01 19:24:51] [INFO    ] cogs.playback_cog: Finished playing song in guild 1400228444100497428.
+[2025-08-01 19:25:00] [INFO    ] discord.voice_state: The voice handshake is being terminated for Channel ID 1400228444566061224 (Guild ID 1400228444100497428)
+[2025-08-01 19:25:12] [INFO    ] discord.voice_state: Connecting to voice...
+[2025-08-01 19:25:12] [INFO    ] discord.voice_state: Starting voice handshake... (connection attempt 1)
+[2025-08-01 19:25:12] [INFO    ] discord.voice_state: Voice handshake complete. Endpoint found: warsaw10125.discord.media
+[2025-08-01 19:25:12] [INFO    ] discord.voice_state: Voice connection complete.
+[2025-08-01 19:25:16] [INFO    ] cogs.playback_cog: Preparing to play 'А ты топи топи тапочку в пол - ТРЕК БОМБА 2020!' in guild 1400228444100497428.
+[2025-08-01 19:25:16] [INFO    ] cogs.playback_cog: Guild 1400228444100497428 - Generated FFMPEG options: {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', 'options': '-vn -af "apulsator=hz=0.2,overdrive=gain=5:colour=20"'}
+[2025-08-01 19:25:16] [INFO    ] cogs.playback_cog: Guild 1400228444100497428 - Active filters: apulsator=hz=0.2,overdrive=gain=5:colour=20
+[2025-08-01 19:25:17] [INFO    ] discord.player: ffmpeg process 112 successfully terminated with return code of 1.
+[2025-08-01 19:25:17] [INFO    ] cogs.playback_cog: Finished playing song in guild 1400228444100497428.
+[2025-08-01 19:25:38] [INFO    ] cogs.playback_cog: Preparing to play 'А ты топи топи тапочку в пол - ТРЕК БОМБА 2020!' in guild 1400228444100497428.
+[2025-08-01 19:25:38] [INFO    ] cogs.playback_cog: Guild 1400228444100497428 - Generated FFMPEG options: {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', 'options': '-vn -af "apulsator=hz=0.2,overdrive=gain=5:colour=20"'}
+[2025-08-01 19:25:38] [INFO    ] cogs.playback_cog: Guild 1400228444100497428 - Active filters: apulsator=hz=0.2,overdrive=gain=5:colour=20
+[2025-08-01 19:25:38] [INFO    ] discord.player: ffmpeg process 142 successfully terminated with return code of 1.
+[2025-08-01 19:25:38] [INFO    ] cogs.playback_cog: Finished playing song in guild 1400228444100497428.
+[2025-08-01 19:25:42] [INFO    ] discord.voice_state: The voice handshake is being terminated for Channel ID 1400228444566061224 (Guild ID 1400228444100497428)
+[2025-08-01 19:27:35] [INFO    ] root: Logging configured successfully.
+[2025-08-01 19:27:35] [INFO    ] root: Successfully loaded cog: cogs.playback_cog
+[2025-08-01 19:27:35] [INFO    ] root: Successfully loaded cog: cogs.effects_cog
+[2025-08-01 19:27:35] [INFO    ] root: Successfully loaded cog: cogs.advanced_effects_cog
+[2025-08-01 19:27:35] [INFO    ] discord.client: logging in using static token
+[2025-08-01 19:27:36] [INFO    ] discord.gateway: Shard ID None has connected to Gateway (Session ID: fc6790484aa3671b66975da61c8a9a6c).
+[2025-08-01 19:27:39] [INFO    ] root: Logged in as notamusicbot
+[2025-08-01 19:27:39] [INFO    ] root: Syncing commands to all guilds...
+[2025-08-01 19:27:39] [INFO    ] root: Bot is ready to rock!
+[2025-08-01 19:27:53] [INFO    ] discord.voice_state: Connecting to voice...
+[2025-08-01 19:27:53] [INFO    ] discord.voice_state: Starting voice handshake... (connection attempt 1)
+[2025-08-01 19:27:53] [INFO    ] discord.voice_state: Voice handshake complete. Endpoint found: warsaw10125.discord.media
+[2025-08-01 19:27:53] [INFO    ] discord.voice_state: Voice connection complete.
+[2025-08-01 19:27:59] [INFO    ] cogs.playback_cog: Preparing to play 'А ты топи топи тапочку в пол - ТРЕК БОМБА 2020!' in guild 1400228444100497428.
+[2025-08-01 19:27:59] [INFO    ] cogs.playback_cog: Guild 1400228444100497428 - Generated FFMPEG options: {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', 'options': '-vn'}
+[2025-08-01 19:29:11] [INFO    ] cogs.effects_cog: 'george26.qs' attempting to toggle filter '8d' in guild 1400228444100497428
+[2025-08-01 19:29:15] [INFO    ] discord.player: ffmpeg process 17 has not terminated. Waiting to terminate...
+[2025-08-01 19:29:15] [INFO    ] discord.player: ffmpeg process 17 should have terminated with a return code of -9.
+[2025-08-01 19:29:15] [INFO    ] cogs.playback_cog: Finished playing song in guild 1400228444100497428.
+[2025-08-01 19:29:24] [INFO    ] cogs.playback_cog: Preparing to play 'T1one   Тапочка clip 2018' in guild 1400228444100497428.
+[2025-08-01 19:29:24] [INFO    ] cogs.playback_cog: Guild 1400228444100497428 - Generated FFMPEG options: {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', 'options': '-vn -af "equalizer=f=100:t=h:w=50:g=0:f=2000:t=h:w=100:g=3:f=6000:t=h:w=200:g=2,acompressor=threshold=0.3:ratio=6:attack=2:release=30"'}
+[2025-08-01 19:29:24] [INFO    ] cogs.playback_cog: Guild 1400228444100497428 - Active filters: equalizer=f=100:t=h:w=50:g=0:f=2000:t=h:w=100:g=3:f=6000:t=h:w=200:g=2,acompressor=threshold=0.3:ratio=6:attack=2:release=30
+[2025-08-01 19:29:48] [INFO    ] discord.player: ffmpeg process 59 has not terminated. Waiting to terminate...
+[2025-08-01 19:29:48] [INFO    ] discord.player: ffmpeg process 59 should have terminated with a return code of -9.
+[2025-08-01 19:29:48] [INFO    ] cogs.playback_cog: Finished playing song in guild 1400228444100497428.
+[2025-08-01 19:29:59] [INFO    ] cogs.playback_cog: Preparing to play 'T1one   Тапочка clip 2018' in guild 1400228444100497428.
+[2025-08-01 19:29:59] [INFO    ] cogs.playback_cog: Guild 1400228444100497428 - Generated FFMPEG options: {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', 'options': '-vn -af "apulsator=hz=0.2"'}
+[2025-08-01 19:29:59] [INFO    ] cogs.playback_cog: Guild 1400228444100497428 - Active filters: apulsator=hz=0.2
+[2025-08-01 19:31:29] [INFO    ] root: Logging configured successfully.
+[2025-08-01 19:31:29] [INFO    ] root: Successfully loaded cog: cogs.playback_cog
+[2025-08-01 19:31:29] [INFO    ] root: Successfully loaded cog: cogs.effects_cog
+[2025-08-01 19:31:29] [INFO    ] root: Successfully loaded cog: cogs.advanced_effects_cog
+[2025-08-01 19:31:29] [INFO    ] discord.client: logging in using static token
+[2025-08-01 19:31:31] [INFO    ] discord.gateway: Shard ID None has connected to Gateway (Session ID: 5e0958deaf71c12c8321accb879ba9b7).
+[2025-08-01 19:31:33] [INFO    ] root: Logged in as notamusicbot
+[2025-08-01 19:31:33] [INFO    ] root: Syncing commands to all guilds...
+[2025-08-01 19:31:33] [INFO    ] root: Bot is ready to rock!
+[2025-08-01 19:31:40] [INFO    ] discord.voice_state: Connecting to voice...
+[2025-08-01 19:31:40] [INFO    ] discord.voice_state: Starting voice handshake... (connection attempt 1)
+[2025-08-01 19:31:41] [INFO    ] discord.voice_state: Voice handshake complete. Endpoint found: warsaw10125.discord.media
+[2025-08-01 19:31:41] [INFO    ] discord.voice_state: Voice connection complete.
+[2025-08-01 19:31:47] [INFO    ] cogs.playback_cog: Preparing to play 'А ты топи топи тапочку в пол - ТРЕК БОМБА 2020!' in guild 1400228444100497428.
+[2025-08-01 19:31:47] [INFO    ] cogs.playback_cog: Guild 1400228444100497428 - Generated FFMPEG options: {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', 'options': '-vn -af "apulsator=hz=0.2"'}
+[2025-08-01 19:31:47] [INFO    ] cogs.playback_cog: Guild 1400228444100497428 - Active filters: apulsator=hz=0.2
+[2025-08-01 19:31:54] [ERROR   ] discord.ui.view: Ignoring exception in view <FilterManagementView timeout=300 children=4> for item <Select placeholder='Select filters to enable/disable...' min_values=0 max_values=7 disabled=False>
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.10/site-packages/discord/ui/view.py", line 435, in _scheduled_task
+    await item.callback(interaction)
+  File "/app/utils/advanced_views.py", line 101, in filter_select
+    applied_live = await playback_cog.apply_filters_to_current_song(
+  File "/app/cogs/playback_cog.py", line 85, in apply_filters_to_current_song
+    await asyncio.sleep(0.1)
+NameError: name 'asyncio' is not defined
+[2025-08-01 19:31:54] [INFO    ] discord.player: ffmpeg process 17 has not terminated. Waiting to terminate...
+[2025-08-01 19:31:54] [INFO    ] discord.player: ffmpeg process 17 should have terminated with a return code of -9.
+[2025-08-01 19:31:57] [INFO    ] cogs.playback_cog: Finished playing song in guild 1400228444100497428.
+[2025-08-01 19:32:22] [INFO    ] root: Logging configured successfully.
+[2025-08-01 19:32:22] [INFO    ] root: Successfully loaded cog: cogs.playback_cog
+[2025-08-01 19:32:22] [INFO    ] root: Successfully loaded cog: cogs.effects_cog
+[2025-08-01 19:32:22] [INFO    ] root: Successfully loaded cog: cogs.advanced_effects_cog
+[2025-08-01 19:32:22] [INFO    ] discord.client: logging in using static token
+[2025-08-01 19:32:25] [INFO    ] discord.gateway: Shard ID None has connected to Gateway (Session ID: 1cc6df192821388cc375a42edc6255a6).
+[2025-08-01 19:32:27] [INFO    ] root: Logged in as notamusicbot
+[2025-08-01 19:32:27] [INFO    ] root: Syncing commands to all guilds...
+[2025-08-01 19:32:28] [INFO    ] root: Bot is ready to rock!
+[2025-08-01 19:32:31] [INFO    ] discord.voice_state: Connecting to voice...
+[2025-08-01 19:32:31] [INFO    ] discord.voice_state: Starting voice handshake... (connection attempt 1)
+[2025-08-01 19:32:32] [INFO    ] discord.voice_state: Voice handshake complete. Endpoint found: warsaw10125.discord.media
+[2025-08-01 19:32:32] [INFO    ] discord.voice_state: Voice connection complete.
+[2025-08-01 19:32:38] [INFO    ] cogs.playback_cog: Preparing to play 'А ты топи топи тапочку в пол - ТРЕК БОМБА 2020!' in guild 1400228444100497428.
+[2025-08-01 19:32:38] [INFO    ] cogs.playback_cog: Guild 1400228444100497428 - Generated FFMPEG options: {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', 'options': '-vn -af "apulsator=hz=0.2"'}
+[2025-08-01 19:32:38] [INFO    ] cogs.playback_cog: Guild 1400228444100497428 - Active filters: apulsator=hz=0.2
+[2025-08-01 19:32:45] [INFO    ] discord.player: ffmpeg process 17 has not terminated. Waiting to terminate...
+[2025-08-01 19:32:45] [INFO    ] discord.player: ffmpeg process 17 should have terminated with a return code of -9.
+[2025-08-01 19:32:46] [INFO    ] cogs.playback_cog: Finished playing song in guild 1400228444100497428.
+[2025-08-01 19:32:46] [INFO    ] cogs.playback_cog: Guild 1400228444100497428 - Applying filters to current song: atempo=1.3,asetrate=44100*1.3,bass=g=5
+[2025-08-01 19:32:54] [INFO    ] discord.player: ffmpeg process 42 has not terminated. Waiting to terminate...
+[2025-08-01 19:32:54] [INFO    ] discord.player: ffmpeg process 42 should have terminated with a return code of -9.
+[2025-08-01 19:32:54] [INFO    ] cogs.playback_cog: Runtime-updated song finished in guild 1400228444100497428.
+[2025-08-01 19:32:54] [INFO    ] cogs.playback_cog: Guild 1400228444100497428 - Applying filters to current song: atempo=1.3,asetrate=44100*1.3,bass=g=5,apulsator=hz=0.2
+[2025-08-01 19:33:08] [INFO    ] discord.player: ffmpeg process 66 has not terminated. Waiting to terminate...
+[2025-08-01 19:33:08] [INFO    ] discord.player: ffmpeg process 66 should have terminated with a return code of -9.
+[2025-08-01 19:33:08] [INFO    ] cogs.playback_cog: Runtime-updated song finished in guild 1400228444100497428.
+[2025-08-01 19:33:08] [INFO    ] cogs.playback_cog: Guild 1400228444100497428 - Applying filters to current song: bass=g=15,dynaudnorm=f=200,atempo=1.3,asetrate=44100*1.3,bass=g=5,apulsator=hz=0.2
