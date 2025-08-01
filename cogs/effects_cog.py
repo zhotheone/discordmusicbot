@@ -76,6 +76,38 @@ class EffectsCog(commands.Cog, name="Audio Effects"):
     async def eight_d(self, interaction: discord.Interaction):
         await self._toggle_filter(interaction, "8d")
 
+    @discord.app_commands.command(
+        name="repeat", 
+        description="Toggle repeat mode (off/song/queue)."
+    )
+    async def repeat_mode(self, interaction: discord.Interaction):
+        """Toggle repeat mode between off, song, and queue."""
+        config = self.config_manager.get_config(interaction.guild.id)
+        current_mode = config.get("repeat_mode", "off")
+        
+        # Cycle through repeat modes: off -> song -> queue -> off
+        if current_mode == "off":
+            new_mode = "song"
+            emoji = "🔂"
+            description = "Repeat mode set to **Song** - Current song will repeat"
+        elif current_mode == "song":
+            new_mode = "queue"
+            emoji = "🔁"
+            description = "Repeat mode set to **Queue** - Entire queue will repeat"
+        else:  # queue
+            new_mode = "off"
+            emoji = "⏹️"
+            description = "Repeat mode **disabled**"
+        
+        config["repeat_mode"] = new_mode
+        self.config_manager.save_config(interaction.guild.id, config)
+        
+        embed = discord.Embed(
+            description=f"{emoji} {description}",
+            color=discord.Color.green()
+        )
+        await interaction.response.send_message(embed=embed)
+
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(EffectsCog(bot))
