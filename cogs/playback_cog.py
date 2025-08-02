@@ -1,40 +1,15 @@
 """Playback Cog for Discord Bot - Handles music playback controls and filters."""
 
-import asyncio
 import discord
 import logging
-import yt_dlp
 from discord.ext import commands
-from typing import Optional
 
 from utils.shared_managers import shared_managers
 from utils.advanced_filters import AdvancedFilterManager
-from utils.filters import FFMPEG_FILTER_CHAINS
 from utils.views import MusicControlsView
 from utils.advanced_views import EnhancedMusicControlsView
 
 log = logging.getLogger(__name__)
-
-# YTDL Configuration
-YTDL_OPTIONS = {
-    'format': 'bestaudio/best',
-    'outtmpl': 'downloads/%(extractor)s-%(id)s-%(title)s.%(ext)s',
-    'restrictfilenames': True,
-    'noplaylist': False,
-    'nocheckcertificate': True,
-    'ignoreerrors': False,
-    'logtostderr': False,
-    'quiet': True,
-    'no_warnings': True,
-    'default_search': 'auto',
-    'source_address': '0.0.0.0'
-
-}
-FFMPEG_OPTIONS_BASE = {
-    'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5',
-    'options': '-vn'
-}
-yt_dlp.utils.bug_reports_message = lambda *args, **kwargs: ''
 
 class PlaybackCog(commands.Cog, name="Playback Controls"):
     """Commands to play, stop, and manage the music queue."""
@@ -42,17 +17,19 @@ class PlaybackCog(commands.Cog, name="Playback Controls"):
     def __init__(self, bot: commands.Bot):
         """Initialize the Playback cog."""
         self.bot = bot
-        # Use shared managers instead of creating new instances
-        self.config_manager = shared_managers.config_manager
+        # Use shared services instead of handling business logic directly
+        self.music_service = shared_managers.music_service
+        self.filter_service = shared_managers.filter_service
+        self.playback_service = shared_managers.playback_service
         self.now_playing_messages = {}
     
     def get_filter_manager(self, guild_id: int) -> AdvancedFilterManager:
         """Get or create advanced filter manager for a guild."""
-        return shared_managers.get_filter_manager(guild_id)
+        return self.filter_service.get_advanced_filter_manager(guild_id)
     
     def save_filter_state(self, guild_id: int):
         """Save current filter state to config."""
-        shared_managers.save_filter_state(guild_id)
+        self.filter_service.save_advanced_filter_state(guild_id)
     
     async def apply_filters_to_current_song(self, guild_id: int, channel=None):
         """Apply current filter settings to the currently playing song."""
@@ -61,198 +38,30 @@ class PlaybackCog(commands.Cog, name="Playback Controls"):
             return False
         
         vc = guild.voice_client
-        if not vc or not vc.is_connected():
-            return False
+        success = await self.playback_service.apply_filters_to_current_song(guild_id, vc)
         
-        # Check if something is currently playing or paused
-        if not (vc.is_playing() or vc.is_paused()):
-            return False
-        
-        # Get current song info
-        current_song = getattr(self, '_current_song', None)
-        if not current_song:
-            return False
-        
-        # Remember if we were paused
-        was_paused = vc.is_paused()
-        
-        # Stop current playback
-        vc.stop()
-        
-        # Wait a moment for the stop to take effect
-        await asyncio.sleep(0.1)
-        
-        # Get current filter settings
-        config = self.config_manager.get_config(guild_id)
-        ffmpeg_options = FFMPEG_OPTIONS_BASE.copy()
-        
-        # Check for advanced filters first
-        filter_manager = self.get_filter_manager(guild_id)
-        advanced_filter = filter_manager.get_combined_ffmpeg_filter()
-        
-        # Fallback to legacy filter system if no advanced filters are active
-        if not advanced_filter:
-            active_filter = config.get("active_filter", "none")
-            if active_filter in FFMPEG_FILTER_CHAINS:
-                advanced_filter = FFMPEG_FILTER_CHAINS[active_filter]
-        
-        # Apply filters if any are active
-        if advanced_filter:
-            ffmpeg_options['options'] += f' -af "{advanced_filter}"'
-        
-        log.info(f"Guild {guild_id} - Applying filters to current song: {advanced_filter}")
-        
-        try:
-            # Create new audio source with updated filters
-            player = discord.FFmpegPCMAudio(current_song['url'], **ffmpeg_options)
-            source = discord.PCMVolumeTransformer(
-                player, volume=config.get("volume", 75) / 100.0
-            )
-            
-            # Start playing with new filters
-            vc.play(
-                source,
-                after=lambda e: self.bot.loop.create_task(
-                    self.after_playback_runtime_update(guild_id, channel, e)
-                )
-            )
-            
-            # Resume paused state if it was paused
-            if was_paused:
-                vc.pause()
-            
-            # Update the now playing message to show new filters
-            await self._update_now_playing_message(guild_id, current_song, config)
-            
-            return True
-            
-        except Exception as e:
-            log.exception(f"Failed to apply filters to current song in guild {guild_id}: {e}")
-            
-            # Try to restart without filters as fallback
-            try:
-                fallback_options = FFMPEG_OPTIONS_BASE.copy()
-                player = discord.FFmpegPCMAudio(current_song['url'], **fallback_options)
-                source = discord.PCMVolumeTransformer(
-                    player, volume=config.get("volume", 75) / 100.0
-                )
-                vc.play(
-                    source,
-                    after=lambda e: self.bot.loop.create_task(
-                        self.after_playback_runtime_update(guild_id, channel, e)
-                    )
-                )
-                if was_paused:
-                    vc.pause()
-                    
-            except Exception as fallback_error:
-                log.exception(f"Fallback restart also failed in guild {guild_id}: {fallback_error}")
-            
-            return False
-    
-    async def after_playback_runtime_update(self, guild_id: int, channel, error):
-        """Callback for runtime filter updates - just continue to next song normally."""
-        if error:
-            log.error(f"Error during runtime-updated playback in guild {guild_id}: {error}")
-        else:
-            log.info(f"Runtime-updated song finished in guild {guild_id}.")
-        
-        # Create a mock interaction for _play_next
-        guild = self.bot.get_guild(guild_id)
-        if guild and channel:
-            class MockInteraction:
-                def __init__(self, guild, channel):
-                    self.guild = guild
-                    self.channel = channel
-                    self.user = guild.me  # Use bot as user
-            
-            mock_interaction = MockInteraction(guild, channel)
-            await self._play_next(mock_interaction)
-    
-    async def _update_now_playing_message(self, guild_id: int, song_info: dict, config: dict):
-        """Update the now playing message with current filter information."""
-        if guild_id not in self.now_playing_messages:
-            return
-        
-        try:
-            message = self.now_playing_messages[guild_id]
-            
-            # Create updated embed
+        if success and channel:
             embed = discord.Embed(
-                title="Now Playing",
-                description=f"[{song_info['title']}]({song_info['webpage_url']})",
+                description="🎛️ **Filters applied to current song!**",
                 color=discord.Color.green()
             )
-            
-            if song_info.get('thumbnail'):
-                embed.set_thumbnail(url=song_info['thumbnail'])
-            
-            # Show active filters (advanced or legacy)
-            filter_manager = self.get_filter_manager(guild_id)
-            enabled_filters = filter_manager.get_enabled_filters()
-            if enabled_filters:
-                filter_text = ", ".join(f.capitalize() for f in enabled_filters)
-                embed.add_field(
-                    name="🎛️ Active Filters (LIVE)",
-                    value=filter_text,
-                    inline=False
-                )
-            elif config.get("active_filter", "none") != "none":
-                embed.add_field(
-                    name="Active Filter (LIVE)",
-                    value=f"`{config.get('active_filter').capitalize()}`",
-                    inline=False
-                )
-            
-            repeat_mode = config.get("repeat_mode", "off")
-            if repeat_mode != "off":
-                repeat_text = "🔂 Song" if repeat_mode == "song" else "🔁 Queue"
-                embed.add_field(
-                    name="Repeat Mode",
-                    value=repeat_text,
-                    inline=False
-                )
-            
-            embed.set_footer(text="🔴 Filters applied to current song!")
-            
-            await message.edit(embed=embed)
-            
-        except Exception as e:
-            log.warning(f"Failed to update now playing message for guild {guild_id}: {e}")
-
-    async def stop_player(self, guild):
-        """Helper function to fully stop playback and cleanup."""
-        vc = guild.voice_client
-        if vc:
-            vc.stop()
+            try:
+                await channel.send(embed=embed)
+            except:
+                pass  # Ignore send errors
         
-        config = self.config_manager.get_config(guild.id)
-        config["queue"].clear()
-        config["repeat_mode"] = "off"  # Reset repeat mode when stopping
-        self.config_manager.save_config(guild.id, config)
-        await self._cleanup_now_playing(guild.id)
-        
-        # Clear repeat-related attributes
-        if hasattr(self, '_original_queue'):
-            delattr(self, '_original_queue')
-        if hasattr(self, '_current_song'):
-            delattr(self, '_current_song')
-        
-        if vc and vc.is_connected():
-            await vc.disconnect()
+        return success
 
     async def after_playback(self, interaction: discord.Interaction, error):
-        """Callback function called after song playback ends."""
+        """Handle after playback completion."""
         if error:
-            log.error(
-                f"Error during playback in guild {interaction.guild.id}: {error}"
-            )
+            log.error(f"Error during playback in guild {interaction.guild.id}: {error}")
         else:
             log.info(f"Finished playing song in guild {interaction.guild.id}.")
         await self._play_next(interaction)
 
     async def _cleanup_now_playing(self, guild_id: int):
-        """Clean up the now playing message for a guild."""
+        """Clean up now playing message UI."""
         if guild_id in self.now_playing_messages:
             try:
                 message = self.now_playing_messages[guild_id]
@@ -262,146 +71,64 @@ class PlaybackCog(commands.Cog, name="Playback Controls"):
                 await message.edit(view=view)
             except (discord.NotFound, discord.Forbidden):
                 pass
-            except Exception as e:
-                log.warning(f"Error cleaning up now playing message for guild {guild_id}: {e}")
             finally:
-                # Always remove the message reference, even if editing failed
-                self.now_playing_messages.pop(guild_id, None)
+                del self.now_playing_messages[guild_id]
 
     async def _play_next(self, interaction: discord.Interaction):
         """Play the next song in the queue."""
         guild_id = interaction.guild.id
         await self._cleanup_now_playing(guild_id)
-        config = self.config_manager.get_config(guild_id)
-        vc = interaction.guild.voice_client
-
-        if not vc or not vc.is_connected():
-            return
         
-        repeat_mode = config.get("repeat_mode", "off")
-        current_song = getattr(self, '_current_song', None)
-        
-        if not config.get("queue") and repeat_mode != "song":
-            # If queue is empty and not repeating current song
-            if repeat_mode == "queue" and hasattr(self, '_original_queue'):
-                # Restore the original queue for queue repeat
-                config["queue"] = self._original_queue.copy()
-                self.config_manager.save_config(guild_id, config)
-            else:
-                await interaction.channel.send(
-                    embed=discord.Embed(
-                        description="Queue finished.",
-                        color=discord.Color.blue()
-                    )
-                )
-                return
-        
-        if vc.is_playing() or vc.is_paused():
+        voice_client = interaction.guild.voice_client
+        if not voice_client or not voice_client.is_connected():
+            log.info(f"Voice client not connected in guild {guild_id}")
             return
 
-        # Handle repeat modes
-        if repeat_mode == "song" and current_song:
-            # Repeat the current song
-            song_info = current_song
-        else:
-            # Get next song from queue
-            if not config.get("queue"):
-                return
-            song_info = config["queue"].pop(0)
-            
-            # Store original queue for queue repeat mode
-            if repeat_mode == "queue" and not hasattr(self, '_original_queue'):
-                self._original_queue = [song_info] + config["queue"].copy()
-            
-            # If repeating queue and this was the last song, restore the queue
-            if repeat_mode == "queue" and not config["queue"]:
-                config["queue"] = self._original_queue.copy()[1:]  # Exclude current song
-        
-        # Store current song for repeat functionality
-        self._current_song = song_info
-        self.config_manager.save_config(guild_id, config)
-        log.info(f"Preparing to play '{song_info['title']}' in guild {guild_id}.")
-
-        ffmpeg_options = FFMPEG_OPTIONS_BASE.copy()
-        
-        # Check for advanced filters first
-        filter_manager = self.get_filter_manager(guild_id)
-        advanced_filter = filter_manager.get_combined_ffmpeg_filter()
-        
-        # Fallback to legacy filter system if no advanced filters are active
-        if not advanced_filter:
-            active_filter = config.get("active_filter", "none")
-            if active_filter in FFMPEG_FILTER_CHAINS:
-                advanced_filter = FFMPEG_FILTER_CHAINS[active_filter]
-        
-        # Apply filters if any are active
-        if advanced_filter:
-            ffmpeg_options['options'] += f' -af "{advanced_filter}"'
-        
-        log.info(f"Guild {guild_id} - Generated FFMPEG options: {ffmpeg_options}")
-        if advanced_filter:
-            log.info(f"Guild {guild_id} - Active filters: {advanced_filter}")
-
-        try:
-            player = discord.FFmpegPCMAudio(song_info['url'], **ffmpeg_options)
-            source = discord.PCMVolumeTransformer(
-                player, volume=config.get("volume", 75) / 100.0
+        # Use playback service to handle the actual playback
+        success = await self.playback_service.play_song(
+            guild_id, 
+            voice_client, 
+            after_callback=lambda e: self.bot.loop.create_task(
+                self.after_playback(interaction, e)
             )
-            vc.play(
-                source,
-                after=lambda e: self.bot.loop.create_task(
-                    self.after_playback(interaction, e)
-                )
-            )
-        except Exception:
-            log.exception(f"Failed to create FFmpeg player in guild {guild_id}.")
-            await interaction.channel.send(
-                embed=discord.Embed(
-                    title="Playback Error",
-                    color=discord.Color.red()
-                )
-            )
-            return
-
-        embed = discord.Embed(
-            title="Now Playing",
-            description=f"[{song_info['title']}]({song_info['webpage_url']})",
-            color=discord.Color.green()
         )
         
-        if song_info.get('thumbnail'):
-            embed.set_thumbnail(url=song_info['thumbnail'])
+        if not success:
+            log.info(f"No more songs in queue for guild {guild_id}")
+            return
+
+        # Get current song info for display
+        current_song = self.playback_service.get_current_song(guild_id)
+        if not current_song:
+            return
+
+        # Create and send now playing message
+        embed = discord.Embed(
+            title="🎵 Now Playing",
+            description=f"**{current_song.title}**",
+            color=discord.Color.blue()
+        )
         
-        # Show active filters (advanced or legacy)
-        enabled_filters = filter_manager.get_enabled_filters()
-        if enabled_filters:
-            filter_text = ", ".join(f.capitalize() for f in enabled_filters)
-            embed.add_field(
-                name="🎛️ Active Filters",
-                value=filter_text,
-                inline=False
-            )
-        elif config.get("active_filter", "none") != "none":
-            # Show legacy filter if no advanced filters
-            embed.add_field(
-                name="Active Filter",
-                value=f"`{config.get('active_filter').capitalize()}`",
-                inline=False
-            )
+        if current_song.uploader:
+            embed.add_field(name="Artist", value=current_song.uploader, inline=True)
         
-        if repeat_mode != "off":
-            repeat_text = "🔂 Song" if repeat_mode == "song" else "🔁 Queue"
+        if current_song.duration:
             embed.add_field(
-                name="Repeat Mode",
-                value=repeat_text,
-                inline=False
+                name="Duration", 
+                value=f"{current_song.duration // 60}:{current_song.duration % 60:02d}", 
+                inline=True
             )
         
-        embed.set_footer(text=f"Requested by {interaction.user.display_name}")
-        
+        if current_song.thumbnail:
+            embed.set_thumbnail(url=current_song.thumbnail)
+
         view = EnhancedMusicControlsView(self)
-        now_playing_message = await interaction.channel.send(embed=embed, view=view)
-        self.now_playing_messages[guild_id] = now_playing_message
+        
+        try:
+            now_playing_message = await interaction.channel.send(embed=embed, view=view)
+            self.now_playing_messages[guild_id] = now_playing_message
+        except Exception as e:
+            log.exception(f"Failed to send now playing message in guild {guild_id}")
 
     @commands.Cog.listener()
     async def on_voice_state_update(self, member, before, after):
@@ -431,15 +158,9 @@ class PlaybackCog(commands.Cog, name="Playback Controls"):
 
         await interaction.response.defer()
 
-        try:
-            with yt_dlp.YoutubeDL(YTDL_OPTIONS) as ydl:
-                search_query = (
-                    f"ytsearch:{query}" if not query.startswith('http') 
-                    else query
-                )
-                info = ydl.extract_info(search_query, download=False)
-        except Exception:
-            log.exception(f"yt-dlp failed to process query: '{query}'")
+        # Use music service to search for the song
+        song = await self.music_service.search_music(query)
+        if not song:
             await interaction.followup.send(
                 embed=discord.Embed(
                     title="Error",
@@ -449,114 +170,79 @@ class PlaybackCog(commands.Cog, name="Playback Controls"):
             )
             return
 
-        config = self.config_manager.get_config(interaction.guild.id)
-        embed = discord.Embed(color=discord.Color.blue())
+        # Get current playback state
+        playback_info = self.playback_service.get_playback_info(interaction.guild.id)
         
-        if 'entries' in info:
-            for entry in info['entries']:
-                if entry:
-                    song_data = {
-                        'url': entry['url'],
-                        'title': entry.get('title', 'Unknown Title'),
-                        'thumbnail': entry.get('thumbnail'),
-                        'webpage_url': entry.get('webpage_url')
-                    }
-                    config["queue"].append(song_data)
+        if not playback_info["is_playing"] and not playback_info["queue"]:
+            # Nothing playing and queue is empty - start immediately
+            self.music_service.add_to_queue(interaction.guild.id, song)
+            await self._play_next(interaction)
             
-            embed.title = "Playlist Added"
-            embed.description = (
-                f"Added **{len(info['entries'])} songs** from `{info['title']}`"
+            embed = discord.Embed(
+                description=f"🎵 **Now playing:** {song.title}",
+                color=discord.Color.green()
             )
         else:
-            song_data = {
-                'url': info['url'],
-                'title': info.get('title', 'Unknown Title'),
-                'thumbnail': info.get('thumbnail'),
-                'webpage_url': info.get('webpage_url')
-            }
-            config["queue"].append(song_data)
+            # Add to queue
+            self.music_service.add_to_queue(interaction.guild.id, song)
+            queue_position = len(playback_info["queue"])
             
-            embed.title = "Added to Queue"
-            embed.description = (
-                f"[{info.get('title', 'Unknown Title')}]"
-                f"({info.get('webpage_url')})"
+            embed = discord.Embed(
+                description=f"✅ **Added to queue:** {song.title}\n📋 **Position:** {queue_position}",
+                color=discord.Color.blue()
             )
         
         await interaction.followup.send(embed=embed)
-        self.config_manager.save_config(interaction.guild.id, config)
-
-        if not vc.is_playing() and not vc.is_paused():
-            await self._play_next(interaction)
 
     @discord.app_commands.command(
-        name="pause", 
-        description="Pauses the current song."
+        name="queue", 
+        description="Shows the current music queue."
     )
-    async def pause(self, interaction: discord.Interaction):
-        """Pause the current song."""
-        vc = interaction.guild.voice_client
+    async def queue(self, interaction: discord.Interaction):
+        """Display the current music queue."""
+        playback_info = self.playback_service.get_playback_info(interaction.guild.id)
         
-        if vc and vc.is_playing():
-            vc.pause()
-            await interaction.response.send_message(
-                embed=discord.Embed(
-                    description="Playback paused. ⏸️",
-                    color=discord.Color.orange()
-                )
-            )
-        else:
-            await interaction.response.send_message(
-                "Nothing is playing.", ephemeral=True
-            )
-            
-    @discord.app_commands.command(
-        name="resume", 
-        description="Resumes the current song."
-    )
-    async def resume(self, interaction: discord.Interaction):
-        """Resume the current song."""
-        vc = interaction.guild.voice_client
+        embed = discord.Embed(title="🎵 Music Queue", color=discord.Color.blue())
         
-        if vc and vc.is_paused():
-            vc.resume()
-            await interaction.response.send_message(
-                embed=discord.Embed(
-                    description="Playback resumed. ▶️",
-                    color=discord.Color.green()
-                )
+        if playback_info["current_song"]:
+            embed.add_field(
+                name="🎵 Now Playing",
+                value=playback_info["current_song"].title,
+                inline=False
             )
-        else:
-            await interaction.response.send_message(
-                "Playback is not paused.", ephemeral=True
-            )
+        
+        if playback_info["queue"]:
+            queue_text = ""
+            for i, song in enumerate(playback_info["queue"][:10], 1):
+                queue_text += f"{i}. {song.title}\n"
             
-    @discord.app_commands.command(
-        name="stop", 
-        description="Stops playback, clears queue, and leaves."
-    )
-    async def stop(self, interaction: discord.Interaction):
-        """Stop playback, clear queue, and disconnect."""
-        if interaction.guild.voice_client:
-            await self.stop_player(interaction.guild)
-            await interaction.response.send_message(
-                embed=discord.Embed(
-                    description="Playback stopped. Goodbye! 👋",
-                    color=discord.Color.red()
-                )
-            )
+            if len(playback_info["queue"]) > 10:
+                queue_text += f"... and {len(playback_info['queue']) - 10} more"
+            
+            embed.add_field(name="📋 Queue", value=queue_text, inline=False)
         else:
-            await interaction.response.send_message(
-                "I'm not in a voice channel.", ephemeral=True
-            )
-    
+            embed.add_field(name="📋 Queue", value="Empty", inline=False)
+        
+        embed.add_field(
+            name="🔁 Repeat Mode", 
+            value=playback_info["repeat_mode"].value.title(), 
+            inline=True
+        )
+        embed.add_field(
+            name="🔊 Volume", 
+            value=f"{playback_info['volume']}%", 
+            inline=True
+        )
+        
+        await interaction.response.send_message(embed=embed)
+
     @discord.app_commands.command(
         name="skip", 
-        description="Skips to the next song in the queue."
+        description="Skips the current song."
     )
     async def skip(self, interaction: discord.Interaction):
-        """Skip to the next song in the queue."""
+        """Skip the current song."""
         vc = interaction.guild.voice_client
-        
         if vc and (vc.is_playing() or vc.is_paused()):
             vc.stop()
             await interaction.response.send_message(
@@ -571,33 +257,98 @@ class PlaybackCog(commands.Cog, name="Playback Controls"):
             )
 
     @discord.app_commands.command(
-        name="queue", 
-        description="Shows the current song queue."
+        name="stop", 
+        description="Stops playback and clears the queue."
     )
-    async def queue(self, interaction: discord.Interaction):
-        """Show the current song queue."""
-        config = self.config_manager.get_config(interaction.guild.id)
-        queue = config.get("queue", [])
-        
-        if not queue:
+    async def stop(self, interaction: discord.Interaction):
+        """Stop playback and clear the queue."""
+        vc = interaction.guild.voice_client
+        if vc and vc.is_connected():
+            # Clear queue and current song using music service
+            self.music_service.clear_queue(interaction.guild.id)
+            self.playback_service.clear_current_song(interaction.guild.id)
+            
+            await vc.disconnect()
             await interaction.response.send_message(
-                "The queue is empty.", ephemeral=True
+                embed=discord.Embed(
+                    description="⏹️ **Playback stopped and queue cleared.**",
+                    color=discord.Color.red()
+                )
+            )
+        else:
+            await interaction.response.send_message(
+                "I'm not in a voice channel.", ephemeral=True
+            )
+
+    @discord.app_commands.command(
+        name="pause", 
+        description="Pauses or resumes playback."
+    )
+    async def pause(self, interaction: discord.Interaction):
+        """Pause or resume playback."""
+        vc = interaction.guild.voice_client
+        if not vc or not vc.is_connected():
+            await interaction.response.send_message(
+                "I'm not in a voice channel.", ephemeral=True
             )
             return
         
-        embed = discord.Embed(title="Song Queue", color=discord.Color.purple())
-        queue_list = [
-            f"`{i+1}.` [{song['title']}]({song['webpage_url']})"
-            for i, song in enumerate(queue[:10])
-        ]
-        embed.description = "\n".join(queue_list)
+        if vc.is_playing():
+            vc.pause()
+            self.playback_service.set_playback_state(interaction.guild.id, False, True)
+            await interaction.response.send_message(
+                embed=discord.Embed(
+                    description="⏸️ **Playback paused.**",
+                    color=discord.Color.orange()
+                )
+            )
+        elif vc.is_paused():
+            vc.resume()
+            self.playback_service.set_playback_state(interaction.guild.id, True, False)
+            await interaction.response.send_message(
+                embed=discord.Embed(
+                    description="▶️ **Playback resumed.**",
+                    color=discord.Color.green()
+                )
+            )
+        else:
+            await interaction.response.send_message(
+                "Nothing is currently playing.", ephemeral=True
+            )
+
+    @discord.app_commands.command(
+        name="repeat", 
+        description="Toggle repeat mode (off/song/queue)."
+    )
+    async def repeat_mode(self, interaction: discord.Interaction):
+        """Toggle repeat mode between off, song, and queue."""
+        from services.music_service import RepeatMode
         
-        if len(queue) > 10:
-            embed.set_footer(text=f"...and {len(queue) - 10} more.")
+        current_info = self.playback_service.get_playback_info(interaction.guild.id)
+        current_mode = current_info["repeat_mode"]
         
+        # Cycle through repeat modes: off -> song -> queue -> off
+        if current_mode == RepeatMode.OFF:
+            new_mode = RepeatMode.SONG
+            emoji = "🔂"
+            description = "Repeat mode set to **Song** - Current song will repeat"
+        elif current_mode == RepeatMode.SONG:
+            new_mode = RepeatMode.QUEUE
+            emoji = "🔁"
+            description = "Repeat mode set to **Queue** - Entire queue will repeat"
+        else:  # queue
+            new_mode = RepeatMode.OFF
+            emoji = "⏹️"
+            description = "Repeat mode **disabled**"
+        
+        self.music_service.set_repeat_mode(interaction.guild.id, new_mode)
+        
+        embed = discord.Embed(
+            description=f"{emoji} {description}",
+            color=discord.Color.green()
+        )
         await interaction.response.send_message(embed=embed)
 
-
 async def setup(bot: commands.Bot):
-    """Set up the Playback cog."""
+    """Setup function for the cog."""
     await bot.add_cog(PlaybackCog(bot))

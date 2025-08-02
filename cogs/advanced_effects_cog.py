@@ -3,7 +3,6 @@
 import discord
 from discord.ext import commands
 import logging
-from typing import Optional, List
 
 from utils.shared_managers import shared_managers
 from utils.advanced_filters import AdvancedFilterManager
@@ -17,16 +16,17 @@ class AdvancedEffectsCog(commands.Cog, name="Advanced Audio Effects"):
     def __init__(self, bot: commands.Bot):
         """Initialize the Advanced Effects cog."""
         self.bot = bot
-        # Use shared managers instead of creating new instances
-        self.config_manager = shared_managers.config_manager
+        # Use shared services instead of handling business logic directly
+        self.filter_service = shared_managers.filter_service
+        self.playback_service = shared_managers.playback_service
     
     def get_filter_manager(self, guild_id: int) -> AdvancedFilterManager:
         """Get or create filter manager for a guild."""
-        return shared_managers.get_filter_manager(guild_id)
+        return self.filter_service.get_advanced_filter_manager(guild_id)
     
     def save_filter_state(self, guild_id: int):
         """Save current filter state to config."""
-        shared_managers.save_filter_state(guild_id)
+        self.filter_service.save_advanced_filter_state(guild_id)
 
     @discord.app_commands.command(
         name="filter_list",

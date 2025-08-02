@@ -1,0 +1,1 @@
+"""Service layer for Discord Music Bot - Business logic separated from Discord commands.""" 

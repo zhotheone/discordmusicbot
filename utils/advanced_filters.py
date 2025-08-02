@@ -8,7 +8,6 @@ This module provides a comprehensive audio filter system that allows:
 """
 
 from typing import Dict, List, Optional, Union
-import json
 
 
 class FilterParameter:

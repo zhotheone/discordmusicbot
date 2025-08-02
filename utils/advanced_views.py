@@ -1,8 +1,6 @@
 """Advanced Discord UI Views with filter management."""
 
 import discord
-from typing import List
-
 
 class FilterManagementView(discord.ui.View):
     """View for managing audio filters with buttons."""

@@ -4,7 +4,6 @@ from typing import Dict
 from utils.config_manager import ConfigManager
 from utils.advanced_filters import AdvancedFilterManager
 
-
 class SharedManagers:
     """Singleton class to provide shared manager instances across all cogs."""
     
@@ -24,8 +23,37 @@ class SharedManagers:
             # Shared AdvancedFilterManager instances per guild
             self.guild_filter_managers: Dict[int, AdvancedFilterManager] = {}
             
+            # Initialize services with lazy loading to avoid circular imports
+            self._music_service = None
+            self._filter_service = None
+            self._playback_service = None
+            
             # Mark as initialized to prevent re-initialization
             SharedManagers._initialized = True
+    
+    @property
+    def music_service(self):
+        """Lazy load music service to avoid circular imports."""
+        if self._music_service is None:
+            from services.music_service import MusicService
+            self._music_service = MusicService(self)
+        return self._music_service
+    
+    @property
+    def filter_service(self):
+        """Lazy load filter service to avoid circular imports."""
+        if self._filter_service is None:
+            from services.filter_service import FilterService
+            self._filter_service = FilterService(self)
+        return self._filter_service
+    
+    @property 
+    def playback_service(self):
+        """Lazy load playback service to avoid circular imports."""
+        if self._playback_service is None:
+            from services.playback_service import PlaybackService
+            self._playback_service = PlaybackService(self)
+        return self._playback_service
     
     def get_filter_manager(self, guild_id: int) -> AdvancedFilterManager:
         """Get or create advanced filter manager for a guild."""
