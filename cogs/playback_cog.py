@@ -72,7 +72,8 @@ class PlaybackCog(commands.Cog, name="Playback Controls"):
             except (discord.NotFound, discord.Forbidden):
                 pass
             finally:
-                del self.now_playing_messages[guild_id]
+                # Safely remove the guild_id if it still exists
+                self.now_playing_messages.pop(guild_id, None)
 
     async def _play_next(self, interaction: discord.Interaction):
         """Play the next song in the queue."""

@@ -186,8 +186,8 @@ class MusicService:
         """Clear the entire queue."""
         state = self.get_playback_state(guild_id)
         state.queue.clear()
-        if guild_id in self._original_queues:
-            del self._original_queues[guild_id]
+        # Safely remove the original queue if it exists
+        self._original_queues.pop(guild_id, None)
         self.save_playback_state(guild_id)
     
     def set_repeat_mode(self, guild_id: int, mode: RepeatMode):

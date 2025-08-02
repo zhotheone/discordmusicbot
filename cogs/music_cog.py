@@ -123,7 +123,9 @@ class MusicCog(commands.Cog):
                 await message.edit(view=view)
             except (discord.NotFound, discord.Forbidden):
                 pass
-            del self.now_playing_messages[guild_id]
+            finally:
+                # Safely remove the guild_id if it still exists
+                self.now_playing_messages.pop(guild_id, None)
 
     async def _play_next(self, interaction: discord.Interaction):
         """Play the next song in the queue."""

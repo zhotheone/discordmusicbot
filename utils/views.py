@@ -75,8 +75,15 @@ class MusicControlsView(discord.ui.View):
         """Handle stop button interaction."""
         vc = interaction.guild.voice_client
         if vc and vc.is_connected():
-            # Stop the player, clear queue, and disconnect
-            await self.cog.stop_player(interaction.guild)
+            # Clear queue and current song using the cog's services
+            if hasattr(self.cog, 'music_service'):
+                self.cog.music_service.clear_queue(interaction.guild.id)
+            if hasattr(self.cog, 'playback_service'):
+                self.cog.playback_service.clear_current_song(interaction.guild.id)
+            
+            # Disconnect from voice channel
+            await vc.disconnect()
+            
             await interaction.response.send_message(
                 "Playback stopped and queue cleared.",
                 ephemeral=True,

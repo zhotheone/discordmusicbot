@@ -219,6 +219,31 @@ class FilterManagementView(discord.ui.View):
         
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
+    @discord.ui.button(label="Back", style=discord.ButtonStyle.secondary, emoji="⬅️")
+    async def back_to_controls(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """Return to the main music controls interface."""
+        # Create the main music controls view
+        controls_view = EnhancedMusicControlsView(self.cog)
+        
+        # Create an embed for the main controls
+        embed = discord.Embed(
+            title="🎵 Music Controls",
+            description="Use the buttons below to control music playback",
+            color=discord.Color.blue()
+        )
+        
+        embed.add_field(
+            name="Available Controls",
+            value="⏸️ **Pause/Resume** - Pause or resume playback\n"
+                  "⏭️ **Skip** - Skip to the next song\n"
+                  "⏹️ **Stop** - Stop playback and clear queue\n"
+                  "🔁 **Repeat** - Toggle repeat mode\n"
+                  "🎛️ **Filters** - Manage audio filters",
+            inline=False
+        )
+        
+        await interaction.response.edit_message(embed=embed, view=controls_view)
+
 
 class PresetSelectionModal(discord.ui.Modal, title="Select Filter Preset"):
     """Modal for selecting and applying filter presets."""
@@ -366,8 +391,15 @@ class EnhancedMusicControlsView(discord.ui.View):
         """Handle stop button interaction."""
         vc = interaction.guild.voice_client
         if vc and vc.is_connected():
-            # Stop the player, clear queue, and disconnect
-            await self.cog.stop_player(interaction.guild)
+            # Clear queue and current song using the cog's services
+            if hasattr(self.cog, 'music_service'):
+                self.cog.music_service.clear_queue(interaction.guild.id)
+            if hasattr(self.cog, 'playback_service'):
+                self.cog.playback_service.clear_current_song(interaction.guild.id)
+            
+            # Disconnect from voice channel
+            await vc.disconnect()
+            
             await interaction.response.send_message(
                 "Playback stopped and queue cleared.",
                 ephemeral=True,

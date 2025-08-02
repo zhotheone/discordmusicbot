@@ -109,8 +109,8 @@ class PlaybackService:
     
     def clear_current_song(self, guild_id: int):
         """Clear current song info."""
-        if guild_id in self._current_songs:
-            del self._current_songs[guild_id]
+        # Safely remove the current song if it exists
+        self._current_songs.pop(guild_id, None)
         self._get_music_service().clear_current_song(guild_id)
     
     async def apply_filters_to_current_song(self, guild_id: int, voice_client) -> bool:
