@@ -159,6 +159,36 @@ class PlaybackCog(commands.Cog, name="Playback Controls"):
 
         await interaction.response.defer()
 
+        # Auto-apply user's saved preferences when they start playing music
+        try:
+            user_settings = shared_managers.user_settings_manager.get_user_settings(interaction.user.id)
+            # Check if user has any non-default preferences
+            if (user_settings.get("volume") != 75 or 
+                user_settings.get("repeat_mode") != "off" or 
+                user_settings.get("filters")):
+                
+                # Apply user preferences automatically
+                filter_manager = self.get_filter_manager(interaction.guild.id)
+                shared_managers.user_settings_manager.apply_user_preferences(
+                    interaction.user.id,
+                    interaction.guild.id,
+                    self.music_service,
+                    filter_manager
+                )
+                self.save_filter_state(interaction.guild.id)
+                
+                # Send a subtle notification
+                await interaction.followup.send(
+                    embed=discord.Embed(
+                        description="🔄 **Applied your saved preferences** (volume, repeat, filters)",
+                        color=discord.Color.blue()
+                    ),
+                    ephemeral=True
+                )
+        except Exception as e:
+            # Don't fail the main operation if preference loading fails
+            log.warning(f"Failed to auto-apply user preferences for {interaction.user.id}: {e}")
+
         # Use music service to search for the song
         song = await self.music_service.search_music(query)
         if not song:

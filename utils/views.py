@@ -1,5 +1,8 @@
 """Discord UI Views for music controls."""
+
 import discord
+from services.music_service import RepeatMode
+from utils.shared_managers import shared_managers
 
 class MusicControlsView(discord.ui.View):
     """A View with music control buttons that interacts with the PlaybackCog."""
@@ -110,28 +113,32 @@ class MusicControlsView(discord.ui.View):
         button: discord.ui.Button
     ):
         """Handle repeat mode toggle button interaction."""
-        config = self.cog.config_manager.get_config(interaction.guild.id)
-        current_mode = config.get("repeat_mode", "off")
+        # Get current repeat mode from the music service
+        current_info = self.cog.playback_service.get_playback_info(interaction.guild.id)
+        current_mode = current_info["repeat_mode"]
         
         # Cycle through repeat modes: off -> song -> queue -> off
-        if current_mode == "off":
-            new_mode = "song"
+        if current_mode == RepeatMode.OFF:
+            new_mode = RepeatMode.SONG
             button.label = "Repeat: Song"
             button.emoji = "🔂"
             button.style = discord.ButtonStyle.success
-        elif current_mode == "song":
-            new_mode = "queue"
+        elif current_mode == RepeatMode.SONG:
+            new_mode = RepeatMode.QUEUE
             button.label = "Repeat: Queue"
             button.emoji = "🔁"
             button.style = discord.ButtonStyle.primary
         else:  # queue
-            new_mode = "off"
+            new_mode = RepeatMode.OFF
             button.label = "Repeat: Off"
             button.emoji = "🔁"
             button.style = discord.ButtonStyle.secondary
         
-        config["repeat_mode"] = new_mode
-        self.cog.config_manager.save_config(interaction.guild.id, config)
+        # Set the new repeat mode using the music service
+        self.cog.music_service.set_repeat_mode(interaction.guild.id, new_mode)
+        
+        # Save user's repeat mode preference
+        shared_managers.user_settings_manager.save_user_repeat_mode(interaction.user.id, new_mode)
         
         await interaction.response.edit_message(view=self)
     

@@ -264,6 +264,30 @@ class MusicCog(commands.Cog):
             )
             await voice_client.move_to(voice_channel)
         await interaction.response.defer()
+        
+        # Auto-apply user's saved preferences when they start playing music
+        try:
+            user_settings = shared_managers.user_settings_manager.get_user_settings(interaction.user.id)
+            # Check if user has any non-default preferences
+            if (user_settings.get("volume") != 75 or 
+                user_settings.get("repeat_mode") != "off" or 
+                user_settings.get("filters")):
+                
+                # Apply user preferences automatically
+                filter_manager = shared_managers.get_filter_manager(interaction.guild.id)
+                shared_managers.user_settings_manager.apply_user_preferences(
+                    interaction.user.id,
+                    interaction.guild.id,
+                    shared_managers.music_service,
+                    filter_manager
+                )
+                shared_managers.save_filter_state(interaction.guild.id)
+                
+                log.info(f"Auto-applied saved preferences for user {interaction.user.id} in guild {interaction.guild.id}")
+        except Exception as e:
+            # Don't fail the main operation if preference loading fails
+            log.warning(f"Failed to auto-apply user preferences for {interaction.user.id}: {e}")
+        
         try:
             with yt_dlp.YoutubeDL(YTDL_OPTIONS) as ydl:
                 search_query = (

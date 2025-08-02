@@ -57,9 +57,19 @@ class EffectsCog(commands.Cog, name="Audio Effects"):
             if voice_client and voice_client.source:
                 voice_client.source.volume = level / 100.0
             
+            # Save user's volume preference
+            shared_managers.user_settings_manager.save_user_volume(interaction.user.id, level)
+            
             embed = discord.Embed(
                 description=f"🔊 {message}",
                 color=discord.Color.blue()
+            )
+            
+            # Add memorization notice
+            embed.add_field(
+                name="💾 Saved",
+                value="Your volume preference has been memorized!",
+                inline=False
             )
         else:
             embed = discord.Embed(

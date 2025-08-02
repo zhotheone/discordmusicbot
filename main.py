@@ -13,8 +13,9 @@ from utils.shared_managers import shared_managers
 # A list of cogs to load at startup
 COGS_TO_LOAD = [
     "cogs.playback_cog",
-    "cogs.effects_cog",
-    "cogs.advanced_effects_cog"
+    "cogs.effects_cog", 
+    "cogs.advanced_effects_cog",
+    "cogs.user_settings_cog"
 ]
 
 def setup_logging():

@@ -3,6 +3,7 @@
 from typing import Dict
 from utils.config_manager import ConfigManager
 from utils.advanced_filters import AdvancedFilterManager
+from utils.user_settings_manager import user_settings_manager
 
 class SharedManagers:
     """Singleton class to provide shared manager instances across all cogs."""
@@ -27,6 +28,9 @@ class SharedManagers:
             self._music_service = None
             self._filter_service = None
             self._playback_service = None
+            
+            # User settings manager (global instance)
+            self.user_settings_manager = user_settings_manager
             
             # Mark as initialized to prevent re-initialization
             SharedManagers._initialized = True

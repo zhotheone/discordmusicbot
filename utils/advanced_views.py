@@ -1,6 +1,8 @@
 """Advanced Discord UI Views with filter management."""
 
 import discord
+from services.music_service import RepeatMode
+from utils.shared_managers import shared_managers
 
 class FilterManagementView(discord.ui.View):
     """View for managing audio filters with buttons."""
@@ -105,6 +107,9 @@ class FilterManagementView(discord.ui.View):
         for option in select.options:
             option.default = option.value in enabled_filters
         
+        # Save user's filter preferences
+        self._save_user_filter_preferences(interaction.user.id, filter_manager)
+        
         if changes:
             embed = discord.Embed(
                 title="🎛️ Filter Settings Updated",
@@ -124,6 +129,13 @@ class FilterManagementView(discord.ui.View):
                     value="Use `/skip` to apply changes to the current song",
                     inline=False
                 )
+            
+            # Add memorization notice
+            embed.add_field(
+                name="💾 Saved",
+                value="Your filter preferences have been memorized!",
+                inline=False
+            )
         else:
             embed = discord.Embed(
                 title="🎛️ No Changes Made",
@@ -132,6 +144,25 @@ class FilterManagementView(discord.ui.View):
             )
         
         await interaction.response.edit_message(embed=embed, view=self)
+    
+    def _save_user_filter_preferences(self, user_id: int, filter_manager):
+        """Save user's current filter preferences."""
+        try:
+            filter_states = {}
+            for filter_name in filter_manager.list_available_filters():
+                filter_obj = filter_manager.get_filter(filter_name)
+                filter_states[filter_name] = {
+                    "enabled": filter_obj.enabled,
+                    "parameters": {
+                        param.name: param.value 
+                        for param in filter_obj.parameters.values()
+                    }
+                }
+            
+            shared_managers.user_settings_manager.save_user_filters(user_id, filter_states)
+        except Exception as e:
+            # Don't fail the main operation if saving preferences fails
+            print(f"Warning: Failed to save user filter preferences: {e}")
 
     @discord.ui.button(label="Apply Preset", style=discord.ButtonStyle.secondary, emoji="🎵")
     async def apply_preset(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -162,10 +193,19 @@ class FilterManagementView(discord.ui.View):
         for option in self.children[0].options:
             option.default = False
         
+        # Save user's cleared filter preferences
+        self._save_user_filter_preferences(interaction.user.id, filter_manager)
+        
         embed = discord.Embed(
             title="🔄 All Filters Cleared",
             description="All audio filters have been disabled",
             color=discord.Color.orange()
+        )
+        
+        embed.add_field(
+            name="💾 Saved",
+            value="Your cleared filter preferences have been memorized!",
+            inline=False
         )
         
         await interaction.response.edit_message(embed=embed, view=self)
@@ -426,28 +466,32 @@ class EnhancedMusicControlsView(discord.ui.View):
         button: discord.ui.Button
     ):
         """Handle repeat mode toggle button interaction."""
-        config = self.cog.config_manager.get_config(interaction.guild.id)
-        current_mode = config.get("repeat_mode", "off")
+        # Get current repeat mode from the music service
+        current_info = self.cog.playback_service.get_playback_info(interaction.guild.id)
+        current_mode = current_info["repeat_mode"]
         
         # Cycle through repeat modes: off -> song -> queue -> off
-        if current_mode == "off":
-            new_mode = "song"
+        if current_mode == RepeatMode.OFF:
+            new_mode = RepeatMode.SONG
             button.label = "Repeat: Song"
             button.emoji = "🔂"
             button.style = discord.ButtonStyle.success
-        elif current_mode == "song":
-            new_mode = "queue"
+        elif current_mode == RepeatMode.SONG:
+            new_mode = RepeatMode.QUEUE
             button.label = "Repeat: Queue"
             button.emoji = "🔁"
             button.style = discord.ButtonStyle.primary
         else:  # queue
-            new_mode = "off"
+            new_mode = RepeatMode.OFF
             button.label = "Repeat: Off"
             button.emoji = "🔁"
             button.style = discord.ButtonStyle.secondary
         
-        config["repeat_mode"] = new_mode
-        self.cog.config_manager.save_config(interaction.guild.id, config)
+        # Set the new repeat mode using the music service
+        self.cog.music_service.set_repeat_mode(interaction.guild.id, new_mode)
+        
+        # Save user's repeat mode preference
+        shared_managers.user_settings_manager.save_user_repeat_mode(interaction.user.id, new_mode)
         
         await interaction.response.edit_message(view=self)
 
@@ -478,11 +522,31 @@ class EnhancedMusicControlsView(discord.ui.View):
         
         view = FilterManagementView(self.cog, interaction.guild.id)
         
-        # Set default selections based on current state
+        # Load user's saved filter preferences and apply them
+        user_filter_defaults = shared_managers.user_settings_manager.get_user_filter_defaults(interaction.user.id)
+        
+        # Set default selections based on user's saved preferences, or current state if no preferences
         if hasattr(self.cog, 'get_filter_manager'):
             filter_manager = self.cog.get_filter_manager(interaction.guild.id)
-            enabled_filters = filter_manager.get_enabled_filters()
             
+            # If user has saved preferences, pre-apply them to the filter manager
+            if user_filter_defaults:
+                try:
+                    shared_managers.user_settings_manager.apply_user_preferences(
+                        interaction.user.id, 
+                        interaction.guild.id, 
+                        self.cog.music_service,
+                        filter_manager
+                    )
+                    embed.add_field(
+                        name="🔄 Restored",
+                        value="Your saved filter preferences have been restored!",
+                        inline=False
+                    )
+                except Exception as e:
+                    print(f"Warning: Failed to apply user preferences: {e}")
+            
+            enabled_filters = filter_manager.get_enabled_filters()
             for option in view.children[0].options:
                 option.default = option.value in enabled_filters
         
