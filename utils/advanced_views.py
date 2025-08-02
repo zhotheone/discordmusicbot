@@ -265,6 +265,9 @@ class FilterManagementView(discord.ui.View):
         # Create the main music controls view
         controls_view = EnhancedMusicControlsView(self.cog)
         
+        # Update the repeat button state to match current mode
+        controls_view._update_repeat_button_state(interaction.guild.id)
+        
         # Create an embed for the main controls
         embed = discord.Embed(
             title="🎵 Music Controls",
@@ -365,6 +368,7 @@ class EnhancedMusicControlsView(discord.ui.View):
         """Initialize the enhanced music controls view."""
         super().__init__(timeout=timeout)
         self.cog = cog
+        self._setup_repeat_button()
     
     @discord.ui.button(
         label="Pause", 
@@ -387,11 +391,15 @@ class EnhancedMusicControlsView(discord.ui.View):
             vc.pause()
             button.label = "Resume"
             button.emoji = "▶️"
+            # Update repeat button state to stay synchronized
+            self._update_repeat_button_state(interaction.guild.id)
             await interaction.response.edit_message(view=self)
         elif vc.is_paused():
             vc.resume()
             button.label = "Pause"
             button.emoji = "⏸️"
+            # Update repeat button state to stay synchronized
+            self._update_repeat_button_state(interaction.guild.id)
             await interaction.response.edit_message(view=self)
         else:
             await interaction.response.defer()
@@ -489,6 +497,51 @@ class EnhancedMusicControlsView(discord.ui.View):
         shared_managers.user_settings_manager.save_user_repeat_mode(interaction.user.id, new_mode)
         
         await interaction.response.edit_message(view=self)
+    
+    def _setup_repeat_button(self):
+        """Set up the repeat button with the current guild's repeat mode."""
+        try:
+            if hasattr(self.cog, 'playback_service'):
+                # Find the repeat button (it should be the 4th button - index 3)
+                repeat_button = None
+                for item in self.children:
+                    if hasattr(item, 'label') and item.label and 'Repeat' in item.label:
+                        repeat_button = item
+                        break
+                
+                if repeat_button:
+                    # Get current repeat mode from playback service (will be called later in guild context)
+                    # For now, we'll update the button when first interaction happens
+                    pass
+        except Exception as e:
+            # Don't fail initialization if button setup fails
+            print(f"Warning: Failed to setup repeat button: {e}")
+    
+    def _update_repeat_button_state(self, guild_id):
+        """Update the repeat button to reflect the current repeat mode."""
+        try:
+            if hasattr(self.cog, 'playback_service'):
+                current_info = self.cog.playback_service.get_playback_info(guild_id)
+                current_mode = current_info["repeat_mode"]
+                
+                # Find the repeat button
+                repeat_button = None
+                for item in self.children:
+                    if hasattr(item, 'label') and item.label and 'Repeat' in item.label:
+                        repeat_button = item
+                        break
+                
+                if repeat_button:
+                    if current_mode == RepeatMode.OFF:
+                        repeat_button.label = "Repeat: Off"
+                        repeat_button.emoji = "🔁"
+                        repeat_button.style = discord.ButtonStyle.secondary
+                    else:  # RepeatMode.SONG
+                        repeat_button.label = "Repeat: Song"
+                        repeat_button.emoji = "🔂"
+                        repeat_button.style = discord.ButtonStyle.success
+        except Exception as e:
+            print(f"Warning: Failed to update repeat button state: {e}")
 
     @discord.ui.button(
         label="Filters", 

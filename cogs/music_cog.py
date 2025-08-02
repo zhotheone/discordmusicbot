@@ -217,6 +217,10 @@ class MusicCog(commands.Cog):
         
         embed.set_footer(text=f"Requested by {interaction.user.display_name}")
         view = MusicControlsView(self)
+        
+        # Update repeat button state to reflect current mode
+        view._update_repeat_button_state(guild_id)
+        
         now_playing_message = await interaction.channel.send(embed=embed, view=view)
         self.now_playing_messages[guild_id] = now_playing_message
 

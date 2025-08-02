@@ -125,6 +125,9 @@ class PlaybackCog(commands.Cog, name="Playback Controls"):
 
         view = EnhancedMusicControlsView(self)
         
+        # Update repeat button state to reflect current mode
+        view._update_repeat_button_state(guild_id)
+        
         try:
             now_playing_message = await interaction.channel.send(embed=embed, view=view)
             self.now_playing_messages[guild_id] = now_playing_message

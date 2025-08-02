@@ -34,11 +34,15 @@ class MusicControlsView(discord.ui.View):
             vc.pause()
             button.label = "Resume"
             button.emoji = "▶️"
+            # Update repeat button state to stay synchronized
+            self._update_repeat_button_state(interaction.guild.id)
             await interaction.response.edit_message(view=self)
         elif vc.is_paused():
             vc.resume()
             button.label = "Pause"
             button.emoji = "⏸️"
+            # Update repeat button state to stay synchronized
+            self._update_repeat_button_state(interaction.guild.id)
             await interaction.response.edit_message(view=self)
         else:
             await interaction.response.defer()
@@ -139,5 +143,32 @@ class MusicControlsView(discord.ui.View):
     
     def _setup_repeat_button(self):
         """Set up the repeat button with the current guild's repeat mode."""
-        # This will be called when creating the view in a guild context
-        pass  # We'll update the button state when the message is sent
+        # This will be called when creating the view, but guild context is needed
+        # The actual state update will happen when first interaction occurs
+        pass
+    
+    def _update_repeat_button_state(self, guild_id):
+        """Update the repeat button to reflect the current repeat mode."""
+        try:
+            if hasattr(self.cog, 'playback_service'):
+                current_info = self.cog.playback_service.get_playback_info(guild_id)
+                current_mode = current_info["repeat_mode"]
+                
+                # Find the repeat button
+                repeat_button = None
+                for item in self.children:
+                    if hasattr(item, 'label') and item.label and 'Repeat' in item.label:
+                        repeat_button = item
+                        break
+                
+                if repeat_button:
+                    if current_mode == RepeatMode.OFF:
+                        repeat_button.label = "Repeat: Off"
+                        repeat_button.emoji = "🔁"
+                        repeat_button.style = discord.ButtonStyle.secondary
+                    else:  # RepeatMode.SONG
+                        repeat_button.label = "Repeat: Song"
+                        repeat_button.emoji = "🔂"
+                        repeat_button.style = discord.ButtonStyle.success
+        except Exception as e:
+            print(f"Warning: Failed to update repeat button state: {e}")
