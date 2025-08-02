@@ -297,3 +297,11 @@ This project is open source. Feel free to modify and distribute.
 ## 🎵 Happy Listening!
 
 Enjoy your enhanced Discord music experience with professional-grade audio processing!
+
+
+Code Duplication: Multiple ConfigManager implementations in different files
+Shared State Issues: Each cog creates separate instances of managers, causing inconsistency
+Tight Coupling: Direct dependency instantiation instead of injection
+Scalability Limitations: JSON file storage won't scale
+Monolithic Cogs: Large files mixing multiple responsibilities
+No Service Layer: Business logic mixed with Discord command handling

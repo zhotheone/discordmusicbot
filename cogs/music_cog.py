@@ -8,6 +8,8 @@ import discord
 import yt_dlp
 from discord.ext import commands
 
+from utils.config_manager import ConfigManager
+
 log = logging.getLogger(__name__)
 
 YTDL_OPTIONS = {
@@ -28,38 +30,6 @@ FFMPEG_OPTIONS_BASE = {
     'options': '-vn'
 }
 yt_dlp.utils.bug_reports_message = lambda *args, **kwargs: ''
-
-class ConfigManager:
-    """Manages JSON configuration files for each guild."""
-    
-    def __init__(self):
-        """Initialize the config manager."""
-        self.config_dir = "configs"
-        if not os.path.exists(self.config_dir):
-            os.makedirs(self.config_dir)
-    
-    def _get_path(self, guild_id: int) -> str:
-        """Get the config file path for a guild."""
-        return os.path.join(self.config_dir, f"{guild_id}.json")
-    
-    def get_config(self, guild_id: int) -> dict:
-        """Get the configuration for a guild."""
-        config_path = self._get_path(guild_id)
-        if not os.path.exists(config_path):
-            default_config = {
-                "volume": 75,
-                "active_filter": "none",
-                "queue": []
-            }
-            self.save_config(guild_id, default_config)
-            return default_config
-        with open(config_path, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    
-    def save_config(self, guild_id: int, data: dict):
-        """Save the configuration for a guild."""
-        with open(self._get_path(guild_id), 'w', encoding='utf-8') as f:
-            json.dump(data, f, indent=4)
 
 class MusicControlsView(discord.ui.View):
     """A View with music control buttons."""
