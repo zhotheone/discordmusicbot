@@ -6,12 +6,13 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     DEBIAN_FRONTEND=noninteractive
 
-# Install system dependencies including FFmpeg
-RUN apt-get update && apt-get install -y \
+# Install system dependencies including FFmpeg and gosu for user switching
+RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
     git \
     curl \
     build-essential \
+    gosu \
     && rm -rf /var/lib/apt/lists/*
 
 # Create app directory
@@ -28,30 +29,19 @@ RUN pip install --no-cache-dir --upgrade pip && \
 COPY . .
 
 # Create necessary directories
+# Ownership will be fixed at runtime by the CMD instruction
 RUN mkdir -p downloads configs logs
 
-# Set proper permissions
-RUN chmod +x main.py
+# Create a non-root user and group for security
+# We do NOT set the USER here, as the initial command must run as root
+RUN groupadd -r app && useradd --no-log-init -r -g app app
 
-# Create a non-root user for security
-RUN useradd --create-home --shell /bin/bash app && \
-    chown -R app:app /app
-
-# Create an entrypoint script to fix permissions at runtime
-RUN echo '#!/bin/bash\n\
-# Fix permissions for mounted directories\n\
-if [ -d "/app/logs" ]; then\n\
-    sudo chown -R app:app /app/logs 2>/dev/null || true\n\
-fi\n\
-# Run the main application\n\
-exec python main.py' > /app/entrypoint.sh && \
-    chmod +x /app/entrypoint.sh
-
-USER app
-
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD python -c "import discord; print('Bot dependencies OK')" || exit 1
+# Change ownership of the app directory itself during build time
+RUN chown -R app:app /app
 
 # Command to run the application
-CMD ["python", "main.py"]
+# This command is run as root.
+# 1. It first changes ownership of the mounted volumes.
+# 2. Then, it uses 'gosu' to switch to the 'app' user and execute the python script.
+# The 'exec' ensures the python process becomes the main process (PID 1).
+CMD ["sh", "-c", "chown -R app:app /app/configs /app/downloads /app/logs && exec gosu app python main.py"]
