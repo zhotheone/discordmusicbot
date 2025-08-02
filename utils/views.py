@@ -117,18 +117,13 @@ class MusicControlsView(discord.ui.View):
         current_info = self.cog.playback_service.get_playback_info(interaction.guild.id)
         current_mode = current_info["repeat_mode"]
         
-        # Cycle through repeat modes: off -> song -> queue -> off
+        # Cycle through repeat modes: off -> song -> off
         if current_mode == RepeatMode.OFF:
             new_mode = RepeatMode.SONG
             button.label = "Repeat: Song"
             button.emoji = "🔂"
             button.style = discord.ButtonStyle.success
-        elif current_mode == RepeatMode.SONG:
-            new_mode = RepeatMode.QUEUE
-            button.label = "Repeat: Queue"
-            button.emoji = "🔁"
-            button.style = discord.ButtonStyle.primary
-        else:  # queue
+        else:  # song
             new_mode = RepeatMode.OFF
             button.label = "Repeat: Off"
             button.emoji = "🔁"

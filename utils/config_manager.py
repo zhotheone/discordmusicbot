@@ -23,7 +23,7 @@ class ConfigManager:
                 "volume": 75,
                 "active_filter": "none",  # Keep for backward compatibility
                 "queue": [],
-                "repeat_mode": "off",  # "off", "song", "queue"
+                "repeat_mode": "off",  # "off", "song"
                 "advanced_filters": {}  # Store advanced filter manager state
             }
             self.save_config(guild_id, default_config)

@@ -277,7 +277,7 @@ class FilterManagementView(discord.ui.View):
             value="⏸️ **Pause/Resume** - Pause or resume playback\n"
                   "⏭️ **Skip** - Skip to the next song\n"
                   "⏹️ **Stop** - Stop playback and clear queue\n"
-                  "🔁 **Repeat** - Toggle repeat mode\n"
+                  "🔁 **Repeat** - Toggle between off and song repeat\n"
                   "🎛️ **Filters** - Manage audio filters",
             inline=False
         )
@@ -470,18 +470,13 @@ class EnhancedMusicControlsView(discord.ui.View):
         current_info = self.cog.playback_service.get_playback_info(interaction.guild.id)
         current_mode = current_info["repeat_mode"]
         
-        # Cycle through repeat modes: off -> song -> queue -> off
+        # Cycle through repeat modes: off -> song -> off
         if current_mode == RepeatMode.OFF:
             new_mode = RepeatMode.SONG
             button.label = "Repeat: Song"
             button.emoji = "🔂"
             button.style = discord.ButtonStyle.success
-        elif current_mode == RepeatMode.SONG:
-            new_mode = RepeatMode.QUEUE
-            button.label = "Repeat: Queue"
-            button.emoji = "🔁"
-            button.style = discord.ButtonStyle.primary
-        else:  # queue
+        else:  # song
             new_mode = RepeatMode.OFF
             button.label = "Repeat: Off"
             button.emoji = "🔁"

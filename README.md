@@ -8,7 +8,7 @@ A feature-rich Discord music bot with advanced audio processing, multiple simult
 - 🎵 **YouTube Integration** - Play music from URLs or search queries
 - 📋 **Advanced Queue Management** - Queue songs with repeat modes
 - ⏯️ **Smart Playback Controls** - Pause, resume, skip, stop with interactive buttons
-- 🔁 **Flexible Repeat Modes** - Off, single song, or entire queue
+- 🔁 **Flexible Repeat Modes** - Off or single song repeat
 - 🎚️ **Volume Control** - Adjustable volume from 0-150%
 
 ### 🎛️ Advanced Audio Filter System

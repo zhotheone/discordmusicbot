@@ -23,6 +23,9 @@ class UserSettingsManager:
         
         # Load existing settings or create new file
         self.settings = self._load_settings()
+        
+        # Migrate legacy queue repeat modes to off
+        self._migrate_legacy_queue_modes()
     
     def _load_settings(self) -> Dict[str, Dict[str, Any]]:
         """Load settings from JSON file, create if doesn't exist."""
@@ -115,6 +118,9 @@ class UserSettingsManager:
         """Get user's preferred repeat mode."""
         mode_str = self.get_user_settings(user_id).get("repeat_mode", "off")
         try:
+            # Convert legacy queue mode to off (since queue mode is removed)
+            if mode_str == "queue":
+                return RepeatMode.OFF
             return RepeatMode(mode_str)
         except ValueError:
             return RepeatMode.OFF
@@ -215,6 +221,18 @@ class UserSettingsManager:
             log.info(f"Cleaned up settings for {len(users_to_remove)} inactive users")
         
         return len(users_to_remove)
+    
+    def _migrate_legacy_queue_modes(self):
+        """Convert legacy 'queue' repeat modes to 'off' since queue mode is removed."""
+        migration_count = 0
+        for user_id, user_settings in self.settings.items():
+            if user_settings.get("repeat_mode") == "queue":
+                user_settings["repeat_mode"] = "off"
+                migration_count += 1
+        
+        if migration_count > 0:
+            self._save_settings(self.settings)
+            log.info(f"Migrated {migration_count} users from legacy queue repeat mode to off")
 
 
 # Global instance

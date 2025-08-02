@@ -41,7 +41,10 @@ class UserSettingsCog(commands.Cog, name="User Settings"):
         
         # Repeat mode preference
         repeat_mode = user_settings.get("repeat_mode", "off")
-        repeat_emoji = {"off": "🔁", "song": "🔂", "queue": "🔁"}
+        # Convert legacy queue mode to off for display
+        if repeat_mode == "queue":
+            repeat_mode = "off"
+        repeat_emoji = {"off": "🔁", "song": "🔂"}
         embed.add_field(
             name="🔄 Preferred Repeat Mode",
             value=f"{repeat_emoji.get(repeat_mode, '🔁')} {repeat_mode.title()}",
@@ -264,7 +267,7 @@ class UserSettingsCog(commands.Cog, name="User Settings"):
             else:
                 repeat_str = str(current_repeat) if current_repeat else "off"
             
-            repeat_emoji = {"off": "🔁", "song": "🔂", "queue": "🔁"}
+            repeat_emoji = {"off": "🔁", "song": "🔂"}
             embed.add_field(
                 name="🔄 Current Repeat Mode",
                 value=f"{repeat_emoji.get(repeat_str, '🔁')} {repeat_str.title()}",

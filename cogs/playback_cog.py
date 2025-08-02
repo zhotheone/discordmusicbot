@@ -358,16 +358,12 @@ class PlaybackCog(commands.Cog, name="Playback Controls"):
         current_info = self.playback_service.get_playback_info(interaction.guild.id)
         current_mode = current_info["repeat_mode"]
         
-        # Cycle through repeat modes: off -> song -> queue -> off
+        # Cycle through repeat modes: off -> song -> off
         if current_mode == RepeatMode.OFF:
             new_mode = RepeatMode.SONG
             emoji = "🔂"
             description = "Repeat mode set to **Song** - Current song will repeat"
-        elif current_mode == RepeatMode.SONG:
-            new_mode = RepeatMode.QUEUE
-            emoji = "🔁"
-            description = "Repeat mode set to **Queue** - Entire queue will repeat"
-        else:  # queue
+        else:  # song
             new_mode = RepeatMode.OFF
             emoji = "⏹️"
             description = "Repeat mode **disabled**"

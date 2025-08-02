@@ -25,8 +25,7 @@ YTDL_OPTIONS = {
 
 class RepeatMode(Enum):
     OFF = "off"
-    SONG = "song" 
-    QUEUE = "queue"
+    SONG = "song"
 
 @dataclass
 class SongInfo:
@@ -60,7 +59,6 @@ class MusicService:
         self.shared_managers = shared_managers
         self.config_manager = shared_managers.config_manager if shared_managers else None
         self._playback_states: Dict[int, PlaybackState] = {}
-        self._original_queues: Dict[int, List[SongInfo]] = {}
         
         # Suppress yt_dlp bug reports
         yt_dlp.utils.bug_reports_message = lambda *args, **kwargs: ''
@@ -145,18 +143,6 @@ class MusicService:
         
         if state.queue:
             next_song = state.queue.pop(0)
-            
-            # Handle queue repeat mode
-            if state.repeat_mode == RepeatMode.QUEUE:
-                # Store original queue on first iteration
-                if guild_id not in self._original_queues and state.current_song:
-                    self._original_queues[guild_id] = [state.current_song] + state.queue.copy()
-                
-                # If queue is empty after popping, restore it
-                if not state.queue:
-                    if guild_id in self._original_queues:
-                        state.queue = self._original_queues[guild_id].copy()[1:]  # Exclude current song
-            
             self.save_playback_state(guild_id)
             return next_song
         
@@ -186,8 +172,6 @@ class MusicService:
         """Clear the entire queue."""
         state = self.get_playback_state(guild_id)
         state.queue.clear()
-        # Safely remove the original queue if it exists
-        self._original_queues.pop(guild_id, None)
         self.save_playback_state(guild_id)
     
     def set_repeat_mode(self, guild_id: int, mode: RepeatMode):

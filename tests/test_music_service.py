@@ -186,43 +186,6 @@ class TestMusicService:
         # Queue should remain unchanged in song repeat mode
         assert len(state.queue) == 0
 
-    def test_get_next_song_repeat_queue(self, music_service, guild_id, sample_playlist_songs):
-        """Test getting next song with queue repeat mode."""
-        config = TestConfig.config_with_queue(sample_playlist_songs)
-        music_service.config_manager.get_config = Mock(return_value=config)
-        music_service.save_playback_state = Mock()
-        
-        state = music_service.get_playback_state(guild_id)
-        state.repeat_mode = RepeatMode.QUEUE
-        state.current_song = sample_playlist_songs[0]  # Set current song
-        
-        # Initial queue should have 3 songs
-        assert len(state.queue) == 3
-        
-        # Get first song - should store original queue
-        song1 = music_service.get_next_song(guild_id)
-        assert song1.title == "Song 1"
-        assert guild_id in music_service._original_queues
-        assert len(state.queue) == 2  # One song removed
-        
-        # Get second song
-        song2 = music_service.get_next_song(guild_id)
-        assert song2.title == "Song 2"
-        assert len(state.queue) == 1  # Another song removed
-        
-        # Get third song - this should empty the queue and then restore it
-        song3 = music_service.get_next_song(guild_id)
-        assert song3.title == "Song 3"
-        # After popping Song 3, queue becomes empty, then gets restored with [Song2, Song3]
-        # (original queue [Song1, Song2, Song3] minus current Song1 = [Song2, Song3])
-        assert len(state.queue) == 2  # Queue restored
-        
-        # Get next song - should get Song 2 from the restored queue
-        song4 = music_service.get_next_song(guild_id)
-        assert song4.title == "Song 2"  # First song from restored queue
-        # After popping Song 2, queue should have Song 3 remaining
-        assert len(state.queue) == 1
-
     def test_get_next_song_empty_queue(self, music_service, guild_id):
         """Test getting next song from empty queue."""
         music_service.config_manager.get_config = Mock(return_value=TestConfig.default_config())
@@ -353,5 +316,4 @@ class TestMusicService:
     def test_repeat_mode_enum_values(self):
         """Test RepeatMode enum values."""
         assert RepeatMode.OFF.value == "off"
-        assert RepeatMode.SONG.value == "song"
-        assert RepeatMode.QUEUE.value == "queue" 
+        assert RepeatMode.SONG.value == "song" 
