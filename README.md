@@ -28,7 +28,7 @@ A feature-rich Discord music bot with advanced audio processing, multiple simult
 | **Slowed + Reverb** | Slow down with echo effects | Tempo (0.5-1.0x), Echo parameters (gain, delay, decay) |
 | **8D Audio** | Create surround sound effect | Pulsation frequency (0.1-2.0 Hz) |
 | **3-Band Equalizer** | Frequency-specific adjustments | Low/Mid/High frequency centers and gains |
-| **Distortion** | Add overdrive/distortion | Gain (1-20), Harmonic color (1-100) |
+| **Overdrive** | Warm tube-like overdrive effect | Drive (3-30 dB), Input/Output levels, Limiter threshold |
 | **Compressor** | Dynamic range compression | Threshold, ratio, attack/release times |
 
 #### Filter Presets

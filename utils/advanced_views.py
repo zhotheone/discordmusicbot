@@ -47,16 +47,16 @@ class FilterManagementView(discord.ui.View):
                 emoji="🎛️"
             ),
             discord.SelectOption(
-                label="Distortion",
-                value="distortion",
-                description="Add distortion/overdrive effect",
-                emoji="⚡"
-            ),
-            discord.SelectOption(
                 label="Compressor",
                 value="compressor",
                 description="Dynamic range compression",
                 emoji="📈"
+            ),
+            discord.SelectOption(
+                label="Overdrive",
+                value="overdrive",
+                description="Warm tube-like overdrive effect",
+                emoji="🔥"
             )
         ]
     )

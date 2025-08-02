@@ -185,15 +185,18 @@ class AdvancedFilterManager:
         equalizer_filter.add_parameter(FilterParameter("width3", 200, 10, 1000, "High frequency width"))
         self.filters["equalizer"] = equalizer_filter
         
-        # Distortion Filter
-        distortion_filter = AudioFilter(
-            "distortion",
-            "overdrive=gain={gain}:colour={colour}",
-            "Add distortion/overdrive effect"
+        # Overdrive Filter (tube-like warm overdrive using different approach)
+        overdrive_filter = AudioFilter(
+            "overdrive",
+            "volume={drive}dB,alimiter=level_in={level_in}:level_out={level_out}:limit={limit}:attack=5:release=50,volume={output}dB",
+            "Warm tube-like overdrive effect"
         )
-        distortion_filter.add_parameter(FilterParameter("gain", 5, 1, 20, "Distortion gain"))
-        distortion_filter.add_parameter(FilterParameter("colour", 20, 1, 100, "Harmonic color"))
-        self.filters["distortion"] = distortion_filter
+        overdrive_filter.add_parameter(FilterParameter("drive", 12, 3, 30, "Overdrive amount in dB"))
+        overdrive_filter.add_parameter(FilterParameter("level_in", 1.0, 0.5, 2.0, "Input level multiplier"))
+        overdrive_filter.add_parameter(FilterParameter("level_out", 0.8, 0.3, 1.0, "Output level multiplier"))
+        overdrive_filter.add_parameter(FilterParameter("limit", 0.9, 0.5, 0.98, "Limiter threshold"))
+        overdrive_filter.add_parameter(FilterParameter("output", -3, -10, 3, "Final output gain in dB"))
+        self.filters["overdrive"] = overdrive_filter
         
         # Compressor Filter
         compressor_filter = AudioFilter(
