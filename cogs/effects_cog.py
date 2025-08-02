@@ -1,8 +1,8 @@
 import discord
 from discord.ext import commands
 import logging
-from utils.config_manager import ConfigManager
-from utils.filters import FFMPEG_FILTER_CHAINS
+
+from utils.shared_managers import shared_managers
 
 log = logging.getLogger(__name__)
 
@@ -10,7 +10,8 @@ class EffectsCog(commands.Cog, name="Audio Effects"):
     """Commands to apply audio effects and control volume."""
     def __init__(self, bot: commands.Bot):
         self.bot = bot
-        self.config_manager = ConfigManager()
+        # Use shared manager instead of creating new instance
+        self.config_manager = shared_managers.config_manager
 
     async def _toggle_filter(self, interaction: discord.Interaction, filter_name: str):
         """Helper function to toggle a filter on or off."""

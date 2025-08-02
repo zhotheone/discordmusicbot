@@ -7,6 +7,9 @@ import discord
 from discord.ext import commands
 from dotenv import load_dotenv
 
+# Import shared managers to ensure initialization
+from utils.shared_managers import shared_managers
+
 # A list of cogs to load at startup
 COGS_TO_LOAD = [
     "cogs.playback_cog",
@@ -41,6 +44,11 @@ async def main():
             "Bot cannot start."
         )
         return
+
+    # Initialize shared managers
+    logging.info("Initializing shared managers...")
+    _ = shared_managers  # This ensures singleton initialization
+    logging.info("Shared managers initialized successfully.")
 
     intents = discord.Intents.default()
     intents.message_content = True

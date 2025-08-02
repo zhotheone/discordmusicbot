@@ -8,7 +8,7 @@ import discord
 import yt_dlp
 from discord.ext import commands
 
-from utils.config_manager import ConfigManager
+from utils.shared_managers import shared_managers
 
 log = logging.getLogger(__name__)
 
@@ -93,12 +93,13 @@ class MusicControlsView(discord.ui.View):
             )
 
 class MusicCog(commands.Cog):
-    """Music cog handling playback, queue management, and audio effects."""
+    """Main music cog for basic playback functionality."""
     
     def __init__(self, bot: commands.Bot):
         """Initialize the Music cog."""
         self.bot = bot
-        self.config_manager = ConfigManager()
+        # Use shared manager instead of creating new instance
+        self.config_manager = shared_managers.config_manager
         self.now_playing_messages = {}
 
     async def after_playback(self, interaction: discord.Interaction, error):

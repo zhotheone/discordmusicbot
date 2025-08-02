@@ -1,19 +1,21 @@
-"""Playback Cog for Discord Bot - Handles music playback controls."""
-import asyncio
-import logging
+"""Playback Cog for Discord Bot - Handles music playback controls and filters."""
 
+import asyncio
 import discord
+import logging
 import yt_dlp
 from discord.ext import commands
+from typing import Optional
 
-from utils.config_manager import ConfigManager
+from utils.shared_managers import shared_managers
+from utils.advanced_filters import AdvancedFilterManager
 from utils.filters import FFMPEG_FILTER_CHAINS
 from utils.views import MusicControlsView
 from utils.advanced_views import EnhancedMusicControlsView
-from utils.advanced_filters import AdvancedFilterManager
 
 log = logging.getLogger(__name__)
 
+# YTDL Configuration
 YTDL_OPTIONS = {
     'format': 'bestaudio/best',
     'outtmpl': 'downloads/%(extractor)s-%(id)s-%(title)s.%(ext)s',
@@ -26,6 +28,7 @@ YTDL_OPTIONS = {
     'no_warnings': True,
     'default_search': 'auto',
     'source_address': '0.0.0.0'
+
 }
 FFMPEG_OPTIONS_BASE = {
     'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5',
@@ -39,23 +42,17 @@ class PlaybackCog(commands.Cog, name="Playback Controls"):
     def __init__(self, bot: commands.Bot):
         """Initialize the Playback cog."""
         self.bot = bot
-        self.config_manager = ConfigManager()
+        # Use shared managers instead of creating new instances
+        self.config_manager = shared_managers.config_manager
         self.now_playing_messages = {}
-        # Store advanced filter managers per guild
-        self.guild_filter_managers = {}
     
     def get_filter_manager(self, guild_id: int) -> AdvancedFilterManager:
         """Get or create advanced filter manager for a guild."""
-        if guild_id not in self.guild_filter_managers:
-            self.guild_filter_managers[guild_id] = AdvancedFilterManager()
-        return self.guild_filter_managers[guild_id]
+        return shared_managers.get_filter_manager(guild_id)
     
     def save_filter_state(self, guild_id: int):
         """Save current filter state to config."""
-        if guild_id in self.guild_filter_managers:
-            config = self.config_manager.get_config(guild_id)
-            config["advanced_filters"] = self.guild_filter_managers[guild_id].to_dict()
-            self.config_manager.save_config(guild_id, config)
+        shared_managers.save_filter_state(guild_id)
     
     async def apply_filters_to_current_song(self, guild_id: int, channel=None):
         """Apply current filter settings to the currently playing song."""

@@ -5,7 +5,7 @@ from discord.ext import commands
 import logging
 from typing import Optional, List
 
-from utils.config_manager import ConfigManager
+from utils.shared_managers import shared_managers
 from utils.advanced_filters import AdvancedFilterManager
 
 log = logging.getLogger(__name__)
@@ -17,27 +17,16 @@ class AdvancedEffectsCog(commands.Cog, name="Advanced Audio Effects"):
     def __init__(self, bot: commands.Bot):
         """Initialize the Advanced Effects cog."""
         self.bot = bot
-        self.config_manager = ConfigManager()
-        # Store filter managers per guild to maintain state
-        self.guild_filter_managers = {}
+        # Use shared managers instead of creating new instances
+        self.config_manager = shared_managers.config_manager
     
     def get_filter_manager(self, guild_id: int) -> AdvancedFilterManager:
         """Get or create filter manager for a guild."""
-        if guild_id not in self.guild_filter_managers:
-            self.guild_filter_managers[guild_id] = AdvancedFilterManager()
-            # Load saved state if exists
-            config = self.config_manager.get_config(guild_id)
-            if config.get("advanced_filters"):
-                # TODO: Implement state restoration from config
-                pass
-        return self.guild_filter_managers[guild_id]
+        return shared_managers.get_filter_manager(guild_id)
     
     def save_filter_state(self, guild_id: int):
         """Save current filter state to config."""
-        if guild_id in self.guild_filter_managers:
-            config = self.config_manager.get_config(guild_id)
-            config["advanced_filters"] = self.guild_filter_managers[guild_id].to_dict()
-            self.config_manager.save_config(guild_id, config)
+        shared_managers.save_filter_state(guild_id)
 
     @discord.app_commands.command(
         name="filter_list",
