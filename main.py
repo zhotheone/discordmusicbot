@@ -57,7 +57,15 @@ async def main():
     intents = discord.Intents.default()
     intents.message_content = True
     intents.voice_states = True
-    bot = commands.Bot(command_prefix="/", intents=intents)
+    
+    # Create bot with voice connection optimizations
+    bot = commands.Bot(
+        command_prefix="/", 
+        intents=intents,
+        # Voice connection settings for stability
+        heartbeat_timeout=60.0,
+        guild_ready_timeout=30.0
+    )
 
     # Set up centralized error handling
     error_handler = setup_bot_error_handlers(bot)
@@ -75,6 +83,19 @@ async def main():
             except Exception as e:
                 logging.error(f"Failed to sync for guild {guild.name}: {e}")
         logging.info("Bot is ready to rock!")
+
+    @bot.event
+    async def on_voice_state_update(member, before, after):
+        """Handle voice state updates to detect disconnections."""
+        if member.id == bot.user.id and before.channel and not after.channel:
+            logging.warning(f"Bot disconnected from voice in guild {member.guild.id}. Cleaning up...")
+            try:
+                # Directly cleanup the voice client from the guild
+                if member.guild.voice_client:
+                    member.guild.voice_client.cleanup()
+                    logging.info(f"Successfully cleaned up voice client for guild {member.guild.id}")
+            except Exception as e:
+                logging.error(f"Error during voice client cleanup for guild {member.guild.id}: {e}")
 
     # Load cogs from our list
     for cog in COGS_TO_LOAD:

@@ -19,7 +19,10 @@ from error_handling import (
     MusicException,
     PlaybackException,
     VoiceException,
-    ServiceException
+    ServiceException,
+    safe_voice_connect,
+    safe_voice_disconnect,
+    handle_voice_error
 )
 
 log = logging.getLogger(__name__)
@@ -175,19 +178,22 @@ class PlaybackCog(commands.Cog, name="Playback Controls"):
         try:
             vc = interaction.guild.voice_client
             if not vc:
-                vc = await interaction.user.voice.channel.connect()
+                # Use safe voice connection with retry logic
+                vc = await safe_voice_connect(interaction.user.voice.channel)
             elif vc.channel != interaction.user.voice.channel:
-                await vc.move_to(interaction.user.voice.channel)
+                # Disconnect and reconnect to new channel
+                await safe_voice_disconnect(vc)
+                vc = await safe_voice_connect(interaction.user.voice.channel)
         except discord.Forbidden:
             raise VoiceException(
                 "No permission to connect to voice channel",
                 "I don't have permission to join or move to that voice channel."
             )
+        except VoiceException:
+            raise  # Re-raise our custom voice exceptions
         except Exception as e:
-            raise VoiceException(
-                f"Failed to connect to voice channel: {str(e)}",
-                "Unable to connect to voice channel. Please try again."
-            )
+            # Convert any other voice errors
+            raise handle_voice_error(e)
 
         await interaction.response.defer()
 
@@ -367,7 +373,9 @@ class PlaybackCog(commands.Cog, name="Playback Controls"):
             self.music_service.clear_queue(interaction.guild.id)
             self.playback_service.clear_current_song(interaction.guild.id)
             
-            await vc.disconnect()
+            # Use safe voice disconnect
+            await safe_voice_disconnect(vc)
+            
             await interaction.response.send_message(
                 embed=discord.Embed(
                     description="⏹️ **Playback stopped and queue cleared.**",

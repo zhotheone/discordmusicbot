@@ -2,6 +2,7 @@ version: '3.8'
 
 services:
   discord-music-bot:
+
     build:
       context: .
       dockerfile: Dockerfile
@@ -11,6 +12,7 @@ services:
     # Environment variables
     environment:
       - PYTHONUNBUFFERED=1
+      - DISCORD_VOICE_TIMEOUT=30
     
     # Mount .env file for environment variables
     env_file:
@@ -22,9 +24,8 @@ services:
       - ./downloads:/app/downloads
       - ./logs:/app/logs
     
-    # Network configuration
-    networks:
-      - discord-bot-network
+    # Network configuration - Use host networking for voice connections
+    network_mode: "host"
     
     # Resource limits (optional)
     deploy:
@@ -51,9 +52,6 @@ services:
       retries: 3
       start_period: 10s
 
-networks:
-  discord-bot-network:
-    driver: bridge
 
 # Optional: Add a monitoring service
 # services:

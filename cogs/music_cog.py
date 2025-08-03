@@ -101,6 +101,17 @@ class MusicCog(commands.Cog):
         # Use shared manager instead of creating new instance
         self.config_manager = shared_managers.config_manager
         self.now_playing_messages = {}
+        self.keepalive_tasks = {}
+
+    async def voice_keepalive(self, voice_client):
+        """Keeps the voice connection alive by periodically sending silence packets"""
+        while True:
+            if voice_client.is_connected():
+                # Send a silence packet every 15 seconds
+                voice_client.send_audio_packet(b'\xF8\xFF\xFE', encode=False)
+                await asyncio.sleep(15)
+            else:
+                break
 
     async def after_playback(self, interaction: discord.Interaction, error):
         """Callback function called after song playback ends."""
@@ -234,6 +245,10 @@ class MusicCog(commands.Cog):
                 f"Bot was disconnected from voice channel in guild "
                 f"{member.guild.id}. Cleaning up."
             )
+            # Cancel keepalive task
+            if member.guild.id in self.keepalive_tasks:
+                self.keepalive_tasks[member.guild.id].cancel()
+                del self.keepalive_tasks[member.guild.id]
             await self._cleanup_now_playing(member.guild.id)
 
     @discord.app_commands.command(
@@ -260,13 +275,22 @@ class MusicCog(commands.Cog):
                 f"Connecting to voice channel '{voice_channel.name}' "
                 f"in guild {interaction.guild.id}"
             )
-            voice_client = await voice_channel.connect()
+            voice_client = await voice_channel.connect(self_deaf=True)
+            # Start keepalive task
+            if interaction.guild.id in self.keepalive_tasks:
+                self.keepalive_tasks[interaction.guild.id].cancel()
+            self.keepalive_tasks[interaction.guild.id] = asyncio.create_task(self.voice_keepalive(voice_client))
+
         elif voice_client.channel != voice_channel:
             log.info(
                 f"Moving to voice channel '{voice_channel.name}' "
                 f"in guild {interaction.guild.id}"
             )
             await voice_client.move_to(voice_channel)
+            # Restart keepalive task for the new channel
+            if interaction.guild.id in self.keepalive_tasks:
+                self.keepalive_tasks[interaction.guild.id].cancel()
+            self.keepalive_tasks[interaction.guild.id] = asyncio.create_task(self.voice_keepalive(voice_client))
         await interaction.response.defer()
         
         # Auto-apply user's saved preferences when they start playing music
