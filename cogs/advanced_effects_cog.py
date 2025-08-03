@@ -7,6 +7,15 @@ import logging
 from utils.shared_managers import shared_managers
 from utils.advanced_filters import AdvancedFilterManager
 
+# Import error handling system
+from error_handling import (
+    handle_errors,
+    raise_if_not_in_voice,
+    raise_if_bot_not_connected,
+    UserInputException,
+    MusicException
+)
+
 log = logging.getLogger(__name__)
 
 

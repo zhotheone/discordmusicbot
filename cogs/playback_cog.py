@@ -9,6 +9,19 @@ from utils.advanced_filters import AdvancedFilterManager
 from utils.views import MusicControlsView
 from utils.advanced_views import EnhancedMusicControlsView
 
+# Import error handling system
+from error_handling import (
+    handle_errors,
+    raise_if_not_in_voice,
+    raise_if_bot_not_connected,
+    raise_if_different_channel,
+    UserInputException,
+    MusicException,
+    PlaybackException,
+    VoiceException,
+    ServiceException
+)
+
 log = logging.getLogger(__name__)
 
 class PlaybackCog(commands.Cog, name="Playback Controls"):
@@ -146,19 +159,35 @@ class PlaybackCog(commands.Cog, name="Playback Controls"):
         name="play", 
         description="Plays a song or adds it to the queue."
     )
+    @handle_errors("Failed to play music")
     async def play(self, interaction: discord.Interaction, *, query: str):
         """Play a song or add it to the queue."""
-        if not interaction.user.voice:
-            await interaction.response.send_message(
-                "You are not connected to a voice channel.", ephemeral=True
+        # Validate input
+        if not query or not query.strip():
+            raise UserInputException(
+                "Empty query provided",
+                "Please provide a song name or URL to play."
             )
-            return
         
-        vc = interaction.guild.voice_client
-        if not vc:
-            vc = await interaction.user.voice.channel.connect()
-        elif vc.channel != interaction.user.voice.channel:
-            await vc.move_to(interaction.user.voice.channel)
+        # Check voice preconditions
+        raise_if_not_in_voice(interaction)
+        
+        try:
+            vc = interaction.guild.voice_client
+            if not vc:
+                vc = await interaction.user.voice.channel.connect()
+            elif vc.channel != interaction.user.voice.channel:
+                await vc.move_to(interaction.user.voice.channel)
+        except discord.Forbidden:
+            raise VoiceException(
+                "No permission to connect to voice channel",
+                "I don't have permission to join or move to that voice channel."
+            )
+        except Exception as e:
+            raise VoiceException(
+                f"Failed to connect to voice channel: {str(e)}",
+                "Unable to connect to voice channel. Please try again."
+            )
 
         await interaction.response.defer()
 
@@ -193,48 +222,67 @@ class PlaybackCog(commands.Cog, name="Playback Controls"):
             log.warning(f"Failed to auto-apply user preferences for {interaction.user.id}: {e}")
 
         # Use music service to search for the song
-        song = await self.music_service.search_music(query)
+        try:
+            song = await self.music_service.search_music(query)
+        except Exception as e:
+            raise ServiceException(
+                f"Music search failed: {str(e)}",
+                "Unable to search for music. The service may be temporarily unavailable.",
+                "Music Search Service"
+            )
+        
         if not song:
-            await interaction.followup.send(
-                embed=discord.Embed(
-                    title="Error",
-                    description="Could not process query.",
-                    color=discord.Color.red()
-                )
+            raise ServiceException(
+                "No results found for query",
+                f"Could not find any music for '{query}'. Please try a different search term.",
+                "Music Search Service"
             )
-            return
 
-        # Get current playback state
-        playback_info = self.playback_service.get_playback_info(interaction.guild.id)
-        
-        if not playback_info["is_playing"] and not playback_info["queue"]:
-            # Nothing playing and queue is empty - start immediately
-            self.music_service.add_to_queue(interaction.guild.id, song)
-            await self._play_next(interaction)
+        try:
+            # Get current playback state
+            playback_info = self.playback_service.get_playback_info(interaction.guild.id)
             
-            embed = discord.Embed(
-                description=f"🎵 **Now playing:** {song.title}",
-                color=discord.Color.green()
-            )
-        else:
-            # Add to queue
-            self.music_service.add_to_queue(interaction.guild.id, song)
-            queue_position = len(playback_info["queue"])
+            if not playback_info["is_playing"] and not playback_info["queue"]:
+                # Nothing playing and queue is empty - start immediately
+                self.music_service.add_to_queue(interaction.guild.id, song)
+                await self._play_next(interaction)
+                
+                embed = discord.Embed(
+                    description=f"🎵 **Now playing:** {song.title}",
+                    color=discord.Color.green()
+                )
+            else:
+                # Add to queue
+                self.music_service.add_to_queue(interaction.guild.id, song)
+                queue_position = len(playback_info["queue"])
+                
+                embed = discord.Embed(
+                    description=f"✅ **Added to queue:** {song.title}\n📋 **Position:** {queue_position}",
+                    color=discord.Color.blue()
+                )
             
-            embed = discord.Embed(
-                description=f"✅ **Added to queue:** {song.title}\n📋 **Position:** {queue_position}",
-                color=discord.Color.blue()
+            await interaction.followup.send(embed=embed)
+            
+        except Exception as e:
+            raise PlaybackException(
+                f"Failed to start playback or add to queue: {str(e)}",
+                "Unable to start playback. Please try again."
             )
-        
-        await interaction.followup.send(embed=embed)
 
     @discord.app_commands.command(
         name="queue", 
         description="Shows the current music queue."
     )
+    @handle_errors("Failed to show queue")
     async def queue(self, interaction: discord.Interaction):
         """Display the current music queue."""
-        playback_info = self.playback_service.get_playback_info(interaction.guild.id)
+        try:
+            playback_info = self.playback_service.get_playback_info(interaction.guild.id)
+        except Exception as e:
+            raise MusicException(
+                f"Failed to get playback info: {str(e)}",
+                "Unable to retrieve queue information."
+            )
         
         embed = discord.Embed(title="🎵 Music Queue", color=discord.Color.blue())
         
@@ -274,30 +322,47 @@ class PlaybackCog(commands.Cog, name="Playback Controls"):
         name="skip", 
         description="Skips the current song."
     )
+    @handle_errors("Failed to skip song")
     async def skip(self, interaction: discord.Interaction):
         """Skip the current song."""
+        # Check voice preconditions
+        raise_if_bot_not_connected(interaction)
+        raise_if_different_channel(interaction)
+        
         vc = interaction.guild.voice_client
         if vc and (vc.is_playing() or vc.is_paused()):
-            vc.stop()
-            await interaction.response.send_message(
-                embed=discord.Embed(
-                    description="Skipped to the next song! ⏭️",
-                    color=discord.Color.blue()
+            try:
+                vc.stop()
+                await interaction.response.send_message(
+                    embed=discord.Embed(
+                        description="Skipped to the next song! ⏭️",
+                        color=discord.Color.blue()
+                    )
                 )
-            )
+            except Exception as e:
+                raise PlaybackException(
+                    f"Failed to skip song: {str(e)}",
+                    "Unable to skip the current song."
+                )
         else:
-            await interaction.response.send_message(
-                "I'm not playing anything.", ephemeral=True
+            raise PlaybackException(
+                "No music playing to skip",
+                "I'm not playing anything to skip."
             )
 
     @discord.app_commands.command(
         name="stop", 
         description="Stops playback and clears the queue."
     )
+    @handle_errors("Failed to stop playback")
     async def stop(self, interaction: discord.Interaction):
         """Stop playback and clear the queue."""
+        # Check voice preconditions
+        raise_if_bot_not_connected(interaction)
+        raise_if_different_channel(interaction)
+        
         vc = interaction.guild.voice_client
-        if vc and vc.is_connected():
+        try:
             # Clear queue and current song using music service
             self.music_service.clear_queue(interaction.guild.id)
             self.playback_service.clear_current_song(interaction.guild.id)
@@ -309,75 +374,93 @@ class PlaybackCog(commands.Cog, name="Playback Controls"):
                     color=discord.Color.red()
                 )
             )
-        else:
-            await interaction.response.send_message(
-                "I'm not in a voice channel.", ephemeral=True
+        except Exception as e:
+            raise PlaybackException(
+                f"Failed to stop playback: {str(e)}",
+                "Unable to stop playback and clear queue."
             )
 
     @discord.app_commands.command(
         name="pause", 
         description="Pauses or resumes playback."
     )
+    @handle_errors("Failed to pause/resume playback")
     async def pause(self, interaction: discord.Interaction):
         """Pause or resume playback."""
-        vc = interaction.guild.voice_client
-        if not vc or not vc.is_connected():
-            await interaction.response.send_message(
-                "I'm not in a voice channel.", ephemeral=True
-            )
-            return
+        # Check voice preconditions
+        raise_if_bot_not_connected(interaction)
+        raise_if_different_channel(interaction)
         
-        if vc.is_playing():
-            vc.pause()
-            self.playback_service.set_playback_state(interaction.guild.id, False, True)
-            await interaction.response.send_message(
-                embed=discord.Embed(
-                    description="⏸️ **Playback paused.**",
-                    color=discord.Color.orange()
+        vc = interaction.guild.voice_client
+        
+        try:
+            if vc.is_playing():
+                vc.pause()
+                self.playback_service.set_playback_state(interaction.guild.id, False, True)
+                await interaction.response.send_message(
+                    embed=discord.Embed(
+                        description="⏸️ **Playback paused.**",
+                        color=discord.Color.orange()
+                    )
                 )
-            )
-        elif vc.is_paused():
-            vc.resume()
-            self.playback_service.set_playback_state(interaction.guild.id, True, False)
-            await interaction.response.send_message(
-                embed=discord.Embed(
-                    description="▶️ **Playback resumed.**",
-                    color=discord.Color.green()
+            elif vc.is_paused():
+                vc.resume()
+                self.playback_service.set_playback_state(interaction.guild.id, True, False)
+                await interaction.response.send_message(
+                    embed=discord.Embed(
+                        description="▶️ **Playback resumed.**",
+                        color=discord.Color.green()
+                    )
                 )
-            )
-        else:
-            await interaction.response.send_message(
-                "Nothing is currently playing.", ephemeral=True
+            else:
+                raise PlaybackException(
+                    "No music playing to pause/resume",
+                    "Nothing is currently playing to pause or resume."
+                )
+        except PlaybackException:
+            raise  # Re-raise our custom exceptions
+        except Exception as e:
+            raise PlaybackException(
+                f"Failed to pause/resume: {str(e)}",
+                "Unable to pause or resume playback."
             )
 
     @discord.app_commands.command(
         name="repeat", 
         description="Toggle repeat mode (off/song/queue)."
     )
+    @handle_errors("Failed to change repeat mode")
     async def repeat_mode(self, interaction: discord.Interaction):
         """Toggle repeat mode between off, song, and queue."""
         from services.music_service import RepeatMode
         
-        current_info = self.playback_service.get_playback_info(interaction.guild.id)
-        current_mode = current_info["repeat_mode"]
-        
-        # Cycle through repeat modes: off -> song -> off
-        if current_mode == RepeatMode.OFF:
-            new_mode = RepeatMode.SONG
-            emoji = "🔂"
-            description = "Repeat mode set to **Song** - Current song will repeat"
-        else:  # song
-            new_mode = RepeatMode.OFF
-            emoji = "⏹️"
-            description = "Repeat mode **disabled**"
-        
-        self.music_service.set_repeat_mode(interaction.guild.id, new_mode)
-        
-        embed = discord.Embed(
-            description=f"{emoji} {description}",
-            color=discord.Color.green()
-        )
-        await interaction.response.send_message(embed=embed)
+        try:
+            current_info = self.playback_service.get_playback_info(interaction.guild.id)
+            current_mode = current_info["repeat_mode"]
+            
+            # Cycle through repeat modes: off -> song -> off
+            if current_mode == RepeatMode.OFF:
+                new_mode = RepeatMode.SONG
+                emoji = "🔂"
+                description = "Repeat mode set to **Song** - Current song will repeat"
+            else:  # song
+                new_mode = RepeatMode.OFF
+                emoji = "⏹️"
+                description = "Repeat mode **disabled**"
+            
+            self.music_service.set_repeat_mode(interaction.guild.id, new_mode)
+            
+            embed = discord.Embed(
+                description=f"{emoji} {description}",
+                color=discord.Color.green()
+            )
+            await interaction.response.send_message(embed=embed)
+            
+        except Exception as e:
+            raise MusicException(
+                f"Failed to change repeat mode: {str(e)}",
+                "Unable to change repeat mode. Please try again."
+            )
 
 async def setup(bot: commands.Bot):
     """Setup function for the cog."""

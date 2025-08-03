@@ -7,6 +7,14 @@ from utils.shared_managers import shared_managers
 from services.music_service import RepeatMode
 import logging
 
+# Import error handling system
+from error_handling import (
+    handle_errors,
+    UserInputException,
+    MusicException,
+    ConfigurationException
+)
+
 log = logging.getLogger(__name__)
 
 class UserSettingsCog(commands.Cog, name="User Settings"):
@@ -21,9 +29,16 @@ class UserSettingsCog(commands.Cog, name="User Settings"):
         name="my_settings",
         description="View your saved music preferences"
     )
+    @handle_errors("Failed to retrieve user settings")
     async def my_settings(self, interaction: discord.Interaction):
         """Display user's current saved settings."""
-        user_settings = self.user_settings.get_user_settings(interaction.user.id)
+        try:
+            user_settings = self.user_settings.get_user_settings(interaction.user.id)
+        except Exception as e:
+            raise ConfigurationException(
+                f"Failed to get user settings: {str(e)}",
+                "Unable to retrieve your saved preferences."
+            )
         
         embed = discord.Embed(
             title="🎵 Your Music Preferences",
@@ -94,26 +109,31 @@ class UserSettingsCog(commands.Cog, name="User Settings"):
         name="apply_my_preferences",
         description="Apply your saved preferences to this server"
     )
+    @handle_errors("Failed to apply user preferences")
     async def apply_my_preferences(self, interaction: discord.Interaction):
         """Apply user's saved preferences to the current guild."""
         if not interaction.user.voice:
-            await interaction.response.send_message(
-                "❌ You need to be in a voice channel to apply your preferences.", 
-                ephemeral=True
+            raise UserInputException(
+                "User not in voice channel",
+                "You need to be in a voice channel to apply your preferences."
             )
-            return
         
-        user_settings = self.user_settings.get_user_settings(interaction.user.id)
+        try:
+            user_settings = self.user_settings.get_user_settings(interaction.user.id)
+        except Exception as e:
+            raise ConfigurationException(
+                f"Failed to get user settings: {str(e)}",
+                "Unable to retrieve your saved preferences."
+            )
         
         # Check if user has any saved preferences
         if (user_settings.get("volume") == 75 and 
             user_settings.get("repeat_mode") == "off" and 
             not user_settings.get("filters")):
-            await interaction.response.send_message(
-                "📭 You don't have any saved preferences yet! Start using the bot to build your preference profile.",
-                ephemeral=True
+            raise UserInputException(
+                "No preferences to apply",
+                "You don't have any saved preferences yet! Start using the bot to build your preference profile."
             )
-            return
         
         try:
             # Get services
@@ -158,20 +178,26 @@ class UserSettingsCog(commands.Cog, name="User Settings"):
             await interaction.response.send_message(embed=embed, ephemeral=True)
             
         except Exception as e:
-            log.error(f"Failed to apply user preferences: {e}")
-            await interaction.response.send_message(
-                "❌ Failed to apply your preferences. Please try again later.",
-                ephemeral=True
+            raise ConfigurationException(
+                f"Failed to apply user preferences: {str(e)}",
+                "Failed to apply your preferences. Please try again later."
             )
     
     @app_commands.command(
         name="clear_my_preferences",
         description="Clear all your saved preferences"
     )
+    @handle_errors("Failed to clear preferences")
     async def clear_my_preferences(self, interaction: discord.Interaction):
         """Clear user's saved preferences."""
-        # Create confirmation view
-        view = ClearPreferencesView(self.user_settings, interaction.user.id)
+        try:
+            # Create confirmation view
+            view = ClearPreferencesView(self.user_settings, interaction.user.id)
+        except Exception as e:
+            raise ConfigurationException(
+                f"Failed to create preferences view: {str(e)}",
+                "Unable to display preferences clearing interface."
+            )
         
         embed = discord.Embed(
             title="⚠️ Clear All Preferences?",

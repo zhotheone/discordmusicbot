@@ -10,6 +10,9 @@ from dotenv import load_dotenv
 # Import shared managers to ensure initialization
 from utils.shared_managers import shared_managers
 
+# Import error handling system
+from error_handling import setup_bot_error_handlers
+
 # A list of cogs to load at startup
 COGS_TO_LOAD = [
     "cogs.playback_cog",
@@ -55,6 +58,10 @@ async def main():
     intents.message_content = True
     intents.voice_states = True
     bot = commands.Bot(command_prefix="/", intents=intents)
+
+    # Set up centralized error handling
+    error_handler = setup_bot_error_handlers(bot)
+    logging.info("Error handling system initialized")
 
     @bot.event
     async def on_ready():
