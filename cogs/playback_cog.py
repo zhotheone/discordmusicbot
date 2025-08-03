@@ -1,5 +1,6 @@
 """Playback Cog for Discord Bot - Handles music playback controls and filters."""
 
+import asyncio
 import discord
 import logging
 from discord.ext import commands
@@ -38,6 +39,40 @@ class PlaybackCog(commands.Cog, name="Playback Controls"):
         self.filter_service = shared_managers.filter_service
         self.playback_service = shared_managers.playback_service
         self.now_playing_messages = {}
+        self.disconnect_timers = {}
+    
+    async def schedule_disconnect(self, guild_id: int, delay: int = 300):
+        """Schedule bot disconnect after specified delay (default 5 minutes)"""
+        guild = self.bot.get_guild(guild_id)
+        if not guild:
+            return
+            
+        # Cancel existing timer if any
+        if guild_id in self.disconnect_timers:
+            self.disconnect_timers[guild_id].cancel()
+        
+        async def disconnect_after_timeout():
+            try:
+                await asyncio.sleep(delay)
+                voice_client = guild.voice_client
+                if voice_client and voice_client.is_connected():
+                    if not voice_client.is_playing():
+                        log.info(f"Disconnecting from guild {guild_id} due to inactivity (300s)")
+                        await voice_client.disconnect()
+                        # Clean up
+                        if guild_id in self.disconnect_timers:
+                            del self.disconnect_timers[guild_id]
+            except asyncio.CancelledError:
+                pass  # Timer was cancelled, which is expected
+        
+        # Start new timer
+        self.disconnect_timers[guild_id] = asyncio.create_task(disconnect_after_timeout())
+    
+    def cog_unload(self):
+        """Clean up disconnect timers when cog is unloaded"""
+        for timer in self.disconnect_timers.values():
+            timer.cancel()
+        self.disconnect_timers.clear()
     
     def get_filter_manager(self, guild_id: int) -> AdvancedFilterManager:
         """Get or create advanced filter manager for a guild."""
@@ -112,7 +147,14 @@ class PlaybackCog(commands.Cog, name="Playback Controls"):
         
         if not success:
             log.info(f"No more songs in queue for guild {guild_id}")
+            # Schedule disconnect after 5 minutes of inactivity
+            await self.schedule_disconnect(guild_id)
             return
+
+        # Cancel disconnect timer since we're playing a song
+        if guild_id in self.disconnect_timers:
+            self.disconnect_timers[guild_id].cancel()
+            del self.disconnect_timers[guild_id]
 
         # Get current song info for display
         current_song = self.playback_service.get_current_song(guild_id)
