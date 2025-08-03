@@ -41,7 +41,7 @@ class PlaybackCog(commands.Cog, name="Playback Controls"):
         self.now_playing_messages = {}
         self.disconnect_timers = {}
     
-    async def schedule_disconnect(self, guild_id: int, delay: int = 300):
+    async def schedule_disconnect(self, guild_id: int, delay: int = 5):
         """Schedule bot disconnect after specified delay (default 5 minutes)"""
         guild = self.bot.get_guild(guild_id)
         if not guild:
@@ -57,6 +57,24 @@ class PlaybackCog(commands.Cog, name="Playback Controls"):
                 voice_client = guild.voice_client
                 if voice_client and voice_client.is_connected():
                     if not voice_client.is_playing():
+                        # Send farewell message
+                        try:
+                            # Find a text channel to send the message
+                            channel = None
+                            for text_channel in guild.text_channels:
+                                if text_channel.permissions_for(guild.me).send_messages:
+                                    channel = text_channel
+                                    break
+                            
+                            if channel:
+                                embed = discord.Embed(
+                                    description="😴 **I'm getting tired... Nobody's been using me for 5 minutes. Go fuck yourself niggers!**",
+                                    color=discord.Color.orange()
+                                )
+                                await channel.send(embed=embed)
+                        except Exception as e:
+                            log.error(f"Failed to send disconnect message in guild {guild_id}: {e}")
+                        
                         log.info(f"Disconnecting from guild {guild_id} due to inactivity (300s)")
                         await voice_client.disconnect()
                         # Clean up
