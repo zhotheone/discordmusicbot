@@ -24,17 +24,24 @@ COGS_TO_LOAD = [
 def setup_logging():
     """Configure logging for console output only."""
     log = logging.getLogger()
-    log.setLevel(logging.INFO)
-    formatter = logging.Formatter(
-        '[{asctime}] [{levelname:<8}] {name}: {message}',
-        datefmt='%Y-%m-%d %H:%M:%S',
-        style='{'
-    )
-    # Console Handler
-    console_handler = logging.StreamHandler()
-    console_handler.setFormatter(formatter)
-    log.addHandler(console_handler)
-    logging.info("Logging configured successfully.")
+    
+    # Only add handler if none exist to prevent duplication
+    if not log.handlers:
+        log.setLevel(logging.INFO)
+        formatter = logging.Formatter(
+            '[{asctime}] [{levelname:<8}] {name}: {message}',
+            datefmt='%Y-%m-%d %H:%M:%S',
+            style='{'
+        )
+        # Console Handler
+        console_handler = logging.StreamHandler()
+        console_handler.setFormatter(formatter)
+        log.addHandler(console_handler)
+        
+        # Disable Python's default "last resort" handler to prevent duplication
+        logging.lastResort = None
+        
+        logging.info("Logging configured successfully.")
 
 async def main():
     """Main function to initialize and run the Discord bot."""
@@ -64,7 +71,8 @@ async def main():
         intents=intents,
         # Voice connection settings for stability
         heartbeat_timeout=60.0,
-        guild_ready_timeout=30.0
+        guild_ready_timeout=30.0,
+        log_handler=None
     )
 
     # Set up centralized error handling
