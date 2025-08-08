@@ -115,6 +115,16 @@ class MusicBot(commands.Bot):
         logger.info(f"Bot is ready! Logged in as {self.user}")
         logger.info(f"Connected to {len(self.guilds)} guilds")
         
+        # Sync commands if this is the first time ready or if needed
+        if not hasattr(self, '_commands_synced'):
+            try:
+                logger.info("Syncing application commands...")
+                synced = await self.tree.sync()
+                logger.info(f"Synced {len(synced)} commands")
+                self._commands_synced = True
+            except Exception as e:
+                logger.error(f"Failed to sync commands: {e}")
+        
         # Set bot status
         activity = discord.Activity(
             type=discord.ActivityType.listening,

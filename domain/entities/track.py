@@ -41,7 +41,9 @@ class Track:
     @property
     def duration_formatted(self) -> str:
         """Get formatted duration string."""
-        hours, remainder = divmod(self.duration, 3600)
+        # Convert to int to handle float durations
+        duration_int = int(self.duration) if self.duration else 0
+        hours, remainder = divmod(duration_int, 3600)
         minutes, seconds = divmod(remainder, 60)
         
         if hours > 0:
