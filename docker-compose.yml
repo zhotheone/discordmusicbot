@@ -1,64 +1,66 @@
 version: '3.8'
 
 services:
-  discord-music-bot:
-
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: discord-music-bot
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: musicbot-postgres
     restart: unless-stopped
-    
-    # Environment variables
     environment:
-      - PYTHONUNBUFFERED=1
-      - DISCORD_VOICE_TIMEOUT=30
-    
-    # Mount .env file for environment variables
-    env_file:
-      - .env
-    
-    # Volume mounts for persistent data
+      POSTGRES_DB: musicbot
+      POSTGRES_USER: musicbot
+      POSTGRES_PASSWORD: musicbot_password
     volumes:
-      - ./configs:/app/configs
-      - ./downloads:/app/downloads
-      - ./logs:/app/logs
-    
-    # Network configuration - Use host networking for voice connections
-    network_mode: "host"
-    
-    # Resource limits (optional)
-    deploy:
-      resources:
-        limits:
-          cpus: '1.0'
-          memory: 512M
-        reservations:
-          cpus: '0.5'
-          memory: 256M
-    
-    # Logging configuration
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-    
-    # Health check
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
     healthcheck:
-      test: ["CMD", "python", "-c", "import discord; print('Bot OK')"]
+      test: ["CMD-SHELL", "pg_isready -U musicbot -d musicbot"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 10s
 
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: musicbot-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
-# Optional: Add a monitoring service
-# services:
-#   watchtower:
-#     image: containrrr/watchtower
-#     container_name: watchtower
-#     restart: unless-stopped
-#     volumes:
-#       - /var/run/docker.sock:/var/run/docker.sock
-#     command: --interval 300 --cleanup discord-music-bot
+  # Discord Music Bot
+  discord-music-bot:
+    build: .
+    container_name: discord-music-bot
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      PYTHONUNBUFFERED: 1
+      DATABASE_URL: postgresql+asyncpg://musicbot:musicbot_password@postgres:5432/musicbot
+      REDIS_URL: redis://redis:6379/0
+    env_file:
+      - .env
+    volumes:
+      - ./logs:/app/logs
+    healthcheck:
+      test: ["CMD", "python", "-c", "print('Bot OK')"]
+      interval: 60s
+      timeout: 30s
+      retries: 3
+      start_period: 60s
+
+volumes:
+  postgres_data:
+  redis_data:

@@ -23,15 +23,18 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+MANIFEST
 
 # Virtual environments
-.env
-.venv
-env/
 venv/
+env/
 ENV/
-env.bak/
-venv.bak/
+.venv/
+
+# Environment variables
+.env
+.env.local
+.env.production
 
 # IDE
 .vscode/
@@ -42,27 +45,48 @@ venv.bak/
 
 # OS
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
 Thumbs.db
 
 # Logs
 *.log
 logs/
+log/
+
+# Runtime data
+cache/
+downloads/
+backups/
+config_backups/
+
+# Testing
+.coverage
+.pytest_cache/
+.tox/
+htmlcov/
+.nyc_output
+
+# Documentation
+docs/_build/
+
+# Docker (keep Dockerfile but ignore compose files)
+docker-compose*.yml
+.dockerignore
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+Jenkinsfile
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
 
 # Temporary files
 tmp/
 temp/
-
-# Docker
-Dockerfile*
-docker-compose*
-.dockerignore
-
-# Documentation
-README.md
-*.md
-
-# Config files (will be mounted as volumes)
-configs/
-discord_bot.log
-
-*.log
