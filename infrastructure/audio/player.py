@@ -28,6 +28,12 @@ class AudioPlayer:
         self.current_source: Optional[discord.AudioSource] = None
         self.volume_transformer: Optional[PCMVolumeTransformer] = None
         self.current_volume: float = 0.5  # Default volume (will be overridden by user settings)
+        # Store the main event loop for cross-thread communication
+        try:
+            self.main_loop = asyncio.get_running_loop()
+        except RuntimeError:
+            self.main_loop = None
+            logger.warning(f"No running event loop found during AudioPlayer initialization for guild {guild_id}")
     
     async def play(self, track: Track) -> None:
         """Play a track."""
@@ -191,13 +197,24 @@ class AudioPlayer:
         self.current_source = None
         self.volume_transformer = None
         
-        # Schedule async event publishing
+        # Schedule async event publishing from a different thread
         if current_track:
             try:
-                loop = asyncio.get_running_loop()
-                loop.create_task(self._on_playback_finished_async(current_track))
-            except RuntimeError:
-                logger.error("No running event loop to publish track ended event")
+                # Try to get the main event loop and schedule the async task
+                import threading
+                
+                # Store the event loop from the main thread during initialization
+                if hasattr(self, 'main_loop') and self.main_loop:
+                    future = asyncio.run_coroutine_threadsafe(
+                        self._on_playback_finished_async(current_track),
+                        self.main_loop
+                    )
+                    # Don't wait for the result to avoid blocking
+                    logger.debug(f"Scheduled track ended event for guild {self.guild_id}")
+                else:
+                    logger.error(f"No main loop available to publish track ended event for guild {self.guild_id}")
+            except Exception as e:
+                logger.error(f"Error scheduling track ended event for guild {self.guild_id}: {e}")
     
     async def _on_playback_finished_async(self, track) -> None:
         """Handle async part of playback finished callback."""

@@ -224,3 +224,129 @@ class YouTubeSource(AudioSource):
         ]
         
         return any(domain in url.lower() for domain in youtube_domains)
+    
+    def is_playlist_url(self, url: str) -> bool:
+        """Check if URL is a YouTube playlist."""
+        url_lower = url.lower()
+        # Check for various playlist indicators
+        playlist_indicators = [
+            'list=',           # Regular playlists
+            'playlist',        # Playlist in URL path
+            '&start_radio=1',  # YouTube Mix/Radio
+            'rdmm',           # YouTube Mix identifier
+            'rd',             # Radio playlist identifier
+        ]
+        
+        has_playlist_indicator = any(indicator in url_lower for indicator in playlist_indicators)
+        logger.debug(f"Playlist URL check for {url}: {has_playlist_indicator}")
+        return has_playlist_indicator
+    
+    async def get_playlist_info(self, playlist_url: str, requester_id: int, max_tracks: int = 50) -> List[Track]:
+        """Extract tracks from a YouTube playlist."""
+        try:
+            logger.info(f"Starting playlist extraction from: {playlist_url}")
+            logger.info(f"Max tracks requested: {max_tracks}, Requester: {requester_id}")
+            
+            # Create playlist-specific options
+            playlist_options = self.ytdl_options.copy()
+            playlist_options['noplaylist'] = False  # Enable playlist extraction
+            playlist_options['playlistend'] = max_tracks  # Limit playlist size
+            playlist_options['extract_flat'] = False  # Get full info for each entry
+            
+            # Special handling for YouTube Mix/Radio playlists
+            if 'start_radio=1' in playlist_url or 'rdmm' in playlist_url.lower() or ('rd' in playlist_url and 'list=rd' in playlist_url):
+                logger.info("Detected YouTube Mix/Radio playlist, using special extraction options")
+                playlist_options['playlistreverse'] = False
+                playlist_options['playlistrandom'] = False
+                # Mix playlists are dynamically generated, so we might need to be more lenient
+                playlist_options['ignoreerrors'] = True
+                playlist_options['extract_flat'] = False
+            
+            logger.debug(f"Playlist extraction options: {playlist_options}")
+            
+            loop = asyncio.get_event_loop()
+            info = await loop.run_in_executor(
+                None,
+                self._extract_playlist_sync,
+                playlist_url,
+                playlist_options
+            )
+            
+            if not info:
+                logger.error(f"No info extracted from playlist: {playlist_url}")
+                return []
+            
+            logger.debug(f"Extracted info keys: {list(info.keys())}")
+            logger.info(f"Playlist title: {info.get('title', 'Unknown')}")
+            logger.info(f"Playlist uploader: {info.get('uploader', 'Unknown')}")
+            
+            tracks = []
+            entries = info.get('entries', [])
+            
+            if not entries:
+                logger.warning(f"No entries found in playlist: {playlist_url}")
+                logger.debug(f"Info structure: {info}")
+                
+                # Fallback for Mix/Radio playlists: try to extract the current video
+                if 'start_radio=1' in playlist_url or 'rdmm' in playlist_url.lower():
+                    logger.info("Attempting fallback extraction for Mix playlist")
+                    try:
+                        # Extract the video ID from the URL to get just the current track
+                        import re
+                        video_id_match = re.search(r'[?&]v=([^&]+)', playlist_url)
+                        if video_id_match:
+                            video_id = video_id_match.group(1)
+                            video_url = f"https://www.youtube.com/watch?v={video_id}"
+                            logger.info(f"Extracting fallback track: {video_url}")
+                            
+                            fallback_track = await self.get_track_info(video_url, requester_id)
+                            if fallback_track:
+                                logger.info("Successfully extracted fallback track from Mix playlist")
+                                return [fallback_track]
+                    except Exception as e:
+                        logger.error(f"Fallback extraction failed: {e}")
+                
+                return []
+            
+            logger.info(f"Found {len(entries)} entries in playlist")
+            
+            # Process each entry in the playlist
+            for i, entry in enumerate(entries):
+                if entry is None:  # Skip unavailable videos
+                    logger.debug(f"Entry {i+1} is None, skipping")
+                    continue
+                
+                logger.debug(f"Processing entry {i+1}: {entry.get('title', 'Unknown Title')}")
+                    
+                try:
+                    track = await self._create_track_from_entry(entry, requester_id)
+                    if track:
+                        tracks.append(track)
+                        logger.debug(f"Successfully created track: {track.title}")
+                    else:
+                        logger.debug(f"Failed to create track from entry {i+1}")
+                        
+                except Exception as e:
+                    logger.warning(f"Failed to process playlist entry {i+1}: {e}")
+                    logger.debug(f"Entry data: {entry}")
+                    continue
+            
+            logger.info(f"Successfully processed {len(tracks)} tracks from playlist")
+            return tracks
+            
+        except Exception as e:
+            logger.error(f"Error extracting playlist from '{playlist_url}': {e}")
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
+            return []
+    
+    def _extract_playlist_sync(self, url: str, options: dict) -> Optional[Dict[str, Any]]:
+        """Synchronous playlist extraction."""
+        try:
+            with yt_dlp.YoutubeDL(options) as ytdl:
+                info = ytdl.extract_info(url, download=False)
+                return info
+                
+        except Exception as e:
+            logger.error(f"Sync extract playlist error: {e}")
+            return None

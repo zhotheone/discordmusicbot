@@ -10,6 +10,7 @@ from core.events import EventBus
 from domain.services.music_service import MusicService
 from domain.services.user_service import UserService
 from domain.services.filter_service import FilterService
+from domain.services.playlist_loader import PlaylistLoaderService
 from application.handlers.error_handler import ErrorHandler
 from presentation.cogs.music_cog import MusicCog
 from presentation.cogs.filters_cog import FiltersCog
@@ -88,6 +89,13 @@ class MusicBot(commands.Bot):
             event_bus=self.event_bus
         )
         self.container.register(FilterService, filter_service)
+        
+        # Playlist loader service
+        playlist_loader_service = PlaylistLoaderService(
+            container=self.container,
+            event_bus=self.event_bus
+        )
+        self.container.register(PlaylistLoaderService, playlist_loader_service)
     
     async def _load_cogs(self) -> None:
         """Load all bot cogs."""
