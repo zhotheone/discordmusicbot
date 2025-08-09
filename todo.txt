@@ -1,0 +1,4 @@
+- kill bot when nobody is in the channel
+- fix the repeat
+- add nightcore, slowed + reverd filters (applied globally as volume)
+- clear queue after crash
