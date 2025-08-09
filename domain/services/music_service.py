@@ -25,6 +25,7 @@ class MusicService:
         
         # Subscribe to events
         self.event_bus.subscribe(Events.TRACK_ENDED, self._on_track_ended)
+        self.event_bus.subscribe("track_age_restricted", self._on_track_age_restricted)
         self.event_bus.subscribe("guild_left", self._on_guild_left)
     
     async def play(self, guild_id: int, track: Track, voice_client: Optional[discord.VoiceClient] = None) -> bool:
@@ -227,3 +228,23 @@ class MusicService:
             del self.audio_players[guild_id]
         
         logger.info(f"Cleaned up music data for guild {guild_id}")
+    
+    async def _on_track_age_restricted(self, guild_id: int, url: str, current_track=None) -> None:
+        """Handle age-restricted track event by skipping to next track."""
+        try:
+            if not current_track:
+                current_track = self.get_current_track(guild_id)
+            
+            if current_track:
+                # Publish event to notify about age restriction before skipping
+                await self.event_bus.publish("track_age_restricted_notification", 
+                                           guild_id=guild_id, 
+                                           track=current_track,
+                                           url=url,
+                                           reason="Age-restricted video - sign in required")
+                
+                logger.info(f"Skipping age-restricted track: {current_track.title} in guild {guild_id}")
+                # Skip to next track
+                await self.skip(guild_id)
+        except Exception as e:
+            logger.error(f"Error handling age-restricted track in guild {guild_id}: {e}")

@@ -81,6 +81,8 @@ class AudioPlayer:
             audio_stream_url = await self._get_audio_stream_url(youtube_url)
             if not audio_stream_url:
                 logger.error(f"Could not extract audio stream URL for: {track.title}")
+                # Don't publish track_ended here - let the age restriction handler deal with it
+                # This prevents the bot from disconnecting when encountering age-restricted videos
                 return
             
             # Build filter chain from active filters
@@ -217,6 +219,19 @@ class AudioPlayer:
                     return info["entries"][0]["url"]
 
         except Exception as e:
+            error_message = str(e)
+            
+            # Check if it's an age restriction error
+            if "Sign in to confirm your age" in error_message or "inappropriate for some users" in error_message:
+                logger.warning(f"Age-restricted video detected: {url}")
+                # Publish age restriction event to trigger skip to next track
+                if self.main_loop:
+                    asyncio.run_coroutine_threadsafe(
+                        self.event_bus.publish("track_age_restricted", guild_id=self.guild_id, url=url, current_track=self.current_track),
+                        self.main_loop
+                    )
+                return None
+            
             logger.error(f"Error extracting audio stream from {url}: {e}")
 
         return None

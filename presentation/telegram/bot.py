@@ -324,6 +324,7 @@ class TelegramService(TelegramSender):
         self._event_bus.subscribe("volume_changed", self._on_volume_changed)
         self._event_bus.subscribe("playback_paused", self._on_playback_paused)
         self._event_bus.subscribe("playback_resumed", self._on_playback_resumed)
+        self._event_bus.subscribe("track_age_restricted_notification", self._on_track_age_restricted)
 
     async def _send_if_linked(self, guild_id: int, text: str) -> None:
         try:
@@ -370,3 +371,7 @@ class TelegramService(TelegramSender):
 
     async def _on_playback_resumed(self, guild_id: int) -> None:
         await self._send_if_linked(guild_id, "▶️ Resumed.")
+    
+    async def _on_track_age_restricted(self, guild_id: int, track, url: str, reason: str) -> None:
+        title = getattr(track, "display_title", getattr(track, "title", "Track"))
+        await self._send_if_linked(guild_id, f"🔞 Age-restricted: {title}\n🔗 {url}\n⏭️ Skipping to next track...")

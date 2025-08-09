@@ -53,6 +53,7 @@ class Events:
     TRACK_STARTED = "track_started"
     TRACK_ENDED = "track_ended"
     TRACK_SKIPPED = "track_skipped"
+    TRACK_AGE_RESTRICTED = "track_age_restricted"
     QUEUE_UPDATED = "queue_updated"
     FILTER_APPLIED = "filter_applied"
     FILTER_REMOVED = "filter_removed"
