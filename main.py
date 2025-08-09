@@ -93,7 +93,7 @@ async def main() -> None:
         await bot.start(token)
 
     except KeyboardInterrupt:
-        logging.info("Shutting down bot...")
+        pass
     except Exception as e:
         logging.error(f"Critical error: {e}")
         raise
