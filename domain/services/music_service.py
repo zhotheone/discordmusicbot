@@ -206,7 +206,8 @@ class MusicService:
             if next_track:
                 await self._start_playback(guild_id)
             else:
-                # End of queue
+                # End of queue - clean up playlist and player
+                playlist.clear()  # Clear the playlist to remove the last track
                 if guild_id in self.audio_players:
                     del self.audio_players[guild_id]
                 await self.event_bus.publish("queue_finished", guild_id=guild_id)

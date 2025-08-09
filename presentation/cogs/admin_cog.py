@@ -3,7 +3,6 @@ import logging
 import discord
 from discord import app_commands
 from discord.ext import commands
-
 from application.handlers.telegram_bridge import TelegramBridge
 from core.dependency_injection import DIContainer
 
@@ -125,9 +124,9 @@ class AdminCog(commands.Cog):
                     ephemeral=True,
                 )
         except Exception as e:
-            logger.error(f"connect_telegram failed: {e}")
+            #logger.error(f"connect_telegram failed: {e}")
             await interaction.followup.send(
-                "Unexpected error while linking.", ephemeral=True
+                f"Unexpected error while linking. {e}", ephemeral=True
             )
 
 

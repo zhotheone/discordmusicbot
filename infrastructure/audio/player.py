@@ -63,6 +63,10 @@ class AudioPlayer:
         try:
             # Load user's volume settings before playing
             await self._load_user_volume_settings(track.requester_id)
+            
+            # Load guild filters if not already loaded
+            await self._load_guild_filters()
+            
             # Stop any currently playing audio
             if self.voice_client.is_playing():
                 self.voice_client.stop()
@@ -350,3 +354,20 @@ class AudioPlayer:
             return ",".join(filter_parts)
             
         return ""
+    
+    async def _load_guild_filters(self) -> None:
+        """Load saved guild filters if not already loaded."""
+        try:
+            # Only load if we don't have any filters loaded yet
+            if not self.active_filters:
+                from domain.services.filter_service import FilterService
+                filter_service = self.container.get(FilterService)
+                await filter_service.load_guild_filters(self.guild_id)
+                
+                # Get the loaded filters from the service
+                if self.guild_id in filter_service.active_filters:
+                    self.active_filters = filter_service.active_filters[self.guild_id].copy()
+                    logger.info(f"Loaded {len(self.active_filters)} saved filters for guild {self.guild_id}")
+                    
+        except Exception as e:
+            logger.error(f"Error loading guild filters for {self.guild_id}: {e}")

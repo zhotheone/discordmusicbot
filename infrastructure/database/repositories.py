@@ -9,6 +9,7 @@ from core.dependency_injection import DIContainer
 from domain.entities.track import Track, TrackSource
 from domain.entities.user_settings import UserSettings
 from infrastructure.database.models import (
+    GuildFilters,
     GuildSettings,
     TelegramChatLink,
     TelegramChatMember,
@@ -428,3 +429,90 @@ class TelegramChatMemberRepository:
             )
             res = await session.execute(stmt)
             return list(res.scalars().all())
+
+
+class GuildFiltersRepository:
+    """Repository for managing guild filter settings."""
+
+    def __init__(self, container: DIContainer):
+        self.container = container
+        self.db_manager: DatabaseManager = container.get(DatabaseManager)
+
+    async def get_guild_filters(self, guild_id: int) -> Optional[Dict[str, dict]]:
+        """Get active filters for a guild."""
+        try:
+            session = await self.db_manager.get_session()
+            async with session:
+                stmt = select(GuildFilters).where(GuildFilters.guild_id == guild_id)
+                result = await session.execute(stmt)
+                guild_filters = result.scalar_one_or_none()
+                
+                if guild_filters:
+                    return guild_filters.active_filters
+                return {}
+                
+        except Exception as e:
+            logger.error(f"Error getting guild filters for {guild_id}: {e}")
+            return {}
+
+    async def set_guild_filters(self, guild_id: int, filters: Dict[str, dict]) -> bool:
+        """Set active filters for a guild."""
+        try:
+            session = await self.db_manager.get_session()
+            async with session:
+                # Try to get existing record
+                stmt = select(GuildFilters).where(GuildFilters.guild_id == guild_id)
+                result = await session.execute(stmt)
+                guild_filters = result.scalar_one_or_none()
+                
+                if guild_filters:
+                    # Update existing record
+                    guild_filters.active_filters = filters
+                else:
+                    # Create new record
+                    guild_filters = GuildFilters(
+                        guild_id=guild_id,
+                        active_filters=filters
+                    )
+                    session.add(guild_filters)
+                
+                await session.commit()
+                logger.info(f"Updated guild filters for {guild_id}: {list(filters.keys())}")
+                return True
+                
+        except Exception as e:
+            logger.error(f"Error setting guild filters for {guild_id}: {e}")
+            return False
+
+    async def add_guild_filter(self, guild_id: int, filter_name: str, filter_config: dict) -> bool:
+        """Add a single filter to guild settings."""
+        try:
+            current_filters = await self.get_guild_filters(guild_id)
+            current_filters[filter_name] = filter_config
+            return await self.set_guild_filters(guild_id, current_filters)
+            
+        except Exception as e:
+            logger.error(f"Error adding guild filter {filter_name} for {guild_id}: {e}")
+            return False
+
+    async def remove_guild_filter(self, guild_id: int, filter_name: str) -> bool:
+        """Remove a single filter from guild settings."""
+        try:
+            current_filters = await self.get_guild_filters(guild_id)
+            if filter_name in current_filters:
+                del current_filters[filter_name]
+                return await self.set_guild_filters(guild_id, current_filters)
+            return True  # Filter wasn't there anyway
+            
+        except Exception as e:
+            logger.error(f"Error removing guild filter {filter_name} for {guild_id}: {e}")
+            return False
+
+    async def clear_guild_filters(self, guild_id: int) -> bool:
+        """Clear all filters for a guild."""
+        try:
+            return await self.set_guild_filters(guild_id, {})
+            
+        except Exception as e:
+            logger.error(f"Error clearing guild filters for {guild_id}: {e}")
+            return False

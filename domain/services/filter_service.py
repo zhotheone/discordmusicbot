@@ -7,6 +7,7 @@ from infrastructure.audio.filters.bass_boost import BassBoostFilter
 from infrastructure.audio.filters.reverb import ReverbFilter
 from infrastructure.audio.filters.slow_filter import SlowFilter
 from infrastructure.audio.filters.spatial_audio import SpatialAudioFilter
+from infrastructure.database.repositories import GuildFiltersRepository
 
 logger = logging.getLogger(__name__)
 
@@ -18,6 +19,8 @@ class FilterService:
         self.container = container
         self.event_bus = event_bus
         self.active_filters: Dict[int, Dict[str, object]] = {}  # guild_id -> {filter_name: filter_instance}
+        self.filters_repository = GuildFiltersRepository(container)
+        self._loaded_guilds: set = set()  # Track which guilds have loaded filters
         
         # Available filters registry
         self.available_filters = {
@@ -52,6 +55,10 @@ class FilterService:
             # Apply filter
             self.active_filters[guild_id][filter_name] = filter_instance
             
+            # Save filter configuration to database
+            filter_config = self._serialize_filter_instance(filter_instance)
+            await self.filters_repository.add_guild_filter(guild_id, filter_name, filter_config)
+            
             # Notify audio player to update filter chain
             await self.event_bus.publish(
                 Events.FILTER_APPLIED,
@@ -78,6 +85,9 @@ class FilterService:
             
             # Remove filter
             del self.active_filters[guild_id][filter_name]
+            
+            # Remove from database
+            await self.filters_repository.remove_guild_filter(guild_id, filter_name)
             
             # Clean up empty guild entries
             if not self.active_filters[guild_id]:
@@ -107,6 +117,9 @@ class FilterService:
             if guild_id in self.active_filters:
                 filter_names = list(self.active_filters[guild_id].keys())
                 del self.active_filters[guild_id]
+                
+                # Clear from database
+                await self.filters_repository.clear_guild_filters(guild_id)
                 
                 # Notify audio player
                 await self.event_bus.publish(
@@ -190,3 +203,101 @@ class FilterService:
         except Exception as e:
             logger.error(f"Error applying user filters for guild {guild_id}: {e}")
             return False
+    
+    async def load_guild_filters(self, guild_id: int) -> bool:
+        """Load and apply saved filters for a guild."""
+        try:
+            # Skip if already loaded
+            if guild_id in self._loaded_guilds:
+                return True
+                
+            saved_filters = await self.filters_repository.get_guild_filters(guild_id)
+            
+            if not saved_filters:
+                logger.info(f"No saved filters found for guild {guild_id}")
+                self._loaded_guilds.add(guild_id)
+                return True
+            
+            # Initialize guild filters if not exists
+            if guild_id not in self.active_filters:
+                self.active_filters[guild_id] = {}
+            
+            success_count = 0
+            for filter_name, filter_config in saved_filters.items():
+                try:
+                    # Recreate filter instance from saved config
+                    filter_instance = self._deserialize_filter_instance(filter_name, filter_config)
+                    if filter_instance:
+                        self.active_filters[guild_id][filter_name] = filter_instance
+                        success_count += 1
+                        logger.debug(f"Loaded filter '{filter_name}' for guild {guild_id}")
+                    
+                except Exception as e:
+                    logger.error(f"Error loading filter '{filter_name}' for guild {guild_id}: {e}")
+            
+            logger.info(f"Loaded {success_count}/{len(saved_filters)} filters for guild {guild_id}")
+            self._loaded_guilds.add(guild_id)
+            return success_count > 0
+            
+        except Exception as e:
+            logger.error(f"Error loading guild filters for guild {guild_id}: {e}")
+            return False
+    
+    def _serialize_filter_instance(self, filter_instance: object) -> dict:
+        """Serialize filter instance to dictionary for database storage."""
+        try:
+            filter_config = {"type": type(filter_instance).__name__}
+            
+            # Extract parameters from different filter types
+            if isinstance(filter_instance, BassBoostFilter):
+                filter_config["level"] = filter_instance.level
+            elif isinstance(filter_instance, ReverbFilter):
+                filter_config["room_size"] = filter_instance.room_size
+                filter_config["damping"] = filter_instance.damping
+            elif isinstance(filter_instance, SlowFilter):
+                filter_config["speed"] = filter_instance.speed
+                filter_config["pitch"] = filter_instance.pitch
+            elif isinstance(filter_instance, SpatialAudioFilter):
+                filter_config["intensity"] = getattr(filter_instance, 'intensity', 0.5)
+            
+            return filter_config
+            
+        except Exception as e:
+            logger.error(f"Error serializing filter instance: {e}")
+            return {"type": "unknown"}
+    
+    def _deserialize_filter_instance(self, filter_name: str, filter_config: dict) -> Optional[object]:
+        """Deserialize filter instance from database configuration."""
+        try:
+            if filter_name not in self.available_filters:
+                logger.warning(f"Unknown filter name in database: {filter_name}")
+                return None
+            
+            filter_class = self.available_filters[filter_name]
+            
+            # Handle lambda functions (nightcore, vaporwave)
+            if callable(filter_class) and not isinstance(filter_class, type):
+                return filter_class()
+            
+            # Create instance with saved parameters
+            if filter_name == "bass_boost":
+                level = filter_config.get("level", 5)
+                return BassBoostFilter(level=level)
+            elif filter_name == "reverb":
+                room_size = filter_config.get("room_size", 0.5)
+                damping = filter_config.get("damping", 0.5)
+                return ReverbFilter(room_size=room_size, damping=damping)
+            elif filter_name == "slow":
+                speed = filter_config.get("speed", 0.8)
+                pitch = filter_config.get("pitch", 1.0)
+                return SlowFilter(speed=speed, pitch=pitch)
+            elif filter_name == "8d":
+                intensity = filter_config.get("intensity", 0.5)
+                return SpatialAudioFilter(intensity=intensity)
+            else:
+                # Default instantiation
+                return filter_class()
+                
+        except Exception as e:
+            logger.error(f"Error deserializing filter '{filter_name}': {e}")
+            return None

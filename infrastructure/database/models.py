@@ -144,6 +144,19 @@ class TelegramChatLink(Base):
     )
 
 
+class GuildFilters(Base):
+    """Active filter settings for each guild."""
+
+    __tablename__ = "guild_filters"
+
+    guild_id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    active_filters: Mapped[dict] = mapped_column(JSON, default=dict)  # {filter_name: {param: value}}
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), onupdate=func.now()
+    )
+
+
 class TelegramChatMember(Base):
     """Known Telegram chat members for building @all mentions."""
 
