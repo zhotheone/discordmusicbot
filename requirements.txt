@@ -1,6 +1,7 @@
 # Core Discord Bot
 discord.py[voice] @ git+https://github.com/rapptz/discord.py
 python-dotenv>=1.0.0
+aiogram>=3.6.0
 
 # Audio Processing
 yt-dlp>=2025.1.1

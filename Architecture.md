@@ -365,3 +365,57 @@ services:
 - I/O optimization for database operations
 
 This architecture provides a solid foundation for a maintainable, scalable Discord music bot with all the requested features while following Python best practices and enterprise-grade patterns.
+
+## Telegram Bridge (Discord ↔ Telegram)
+
+### Overview
+An optional Telegram bot (Aiogram 3) lets users control playback from Telegram and mirrors Discord playback updates to a linked Telegram chat. It’s disabled by default and can be enabled via environment flags.
+
+### Components
+- `presentation/telegram/bot.py` — TelegramService
+    - Starts an Aiogram `Bot`, registers handlers: `/list`, `/play`, `/queue`, `/stop`, `/volume`, `/id`.
+    - Uses `MusicService` and audio sources (`YouTubeSource`, `SpotifySource`) to queue/play.
+    - Subscribes to `core.events.EventBus` to forward events (track started/skipped/ended, paused/resumed, volume, queue finished).
+    - Implements `TelegramSender` interface (send_message, helpers).
+- `application/handlers/telegram_bridge.py` — TelegramBridge
+    - Mediates between Discord and Telegram. Discord code calls the bridge; the Telegram service registers itself as a sender.
+    - Provides high-level actions like `send_mention_all(guild_id, text)` and `link_guild_to_chat(guild_id, chat_id)`.
+    - Uses repositories to resolve guild↔chat links and cached Telegram members.
+- `infrastructure/database/models.py` and `.../repositories.py`
+    - `TelegramChatLink` table — maps Discord guild_id to Telegram `telegram_chat_id`.
+    - `TelegramChatMember` table — caches chat members (humans) for building @all mentions.
+
+### Startup & DI
+- `main.py` calls `presentation.telegram.start_telegram(container, settings)` after the Discord bot is created.
+- `start_telegram` checks `Settings.enable_telegram`; if enabled, it:
+    1) Creates and registers `TelegramBridge` in the DI container.
+    2) Instantiates `TelegramService`, registers it as the bridge sender, then starts polling.
+- `Settings` loads `ENABLE_TELEGRAM` and `TELEGRAM_TOKEN` from env.
+
+### Linking Flow (Discord Admin)
+1) Add the Telegram bot to your target Telegram chat/group.
+2) In Telegram, send `/id` to get the numeric `chat_id`.
+3) In Discord (admin), run `/connect_telegram <chat_id>`.
+4) The bridge verifies/records the link via `TelegramChatLinkRepository`.
+
+After linking, Discord events and admin actions can target the linked chat.
+
+### Commands and Events
+- Telegram commands handled by `TelegramService`:
+    - `/list` — show non-offline members of the linked Discord guild.
+    - `/play <query|url>` — queue music (YouTube/Spotify links or search query).
+    - `/queue`, `/stop`, `/volume <0-100>`, `/id`.
+- Discord admin commands (in `presentation/cogs/admin_cog.py`):
+    - `/connect_telegram <chat_id>` — link guild to Telegram chat.
+    - `/all <reason>` — mention all known humans in the linked Telegram chat via the bridge.
+- Events forwarded to Telegram (via EventBus): now playing, skipped, finished, paused/resumed, volume changes, queue finished.
+
+### Data Model
+- `telegram_chat_links(guild_id, telegram_chat_id)` — unique by `telegram_chat_id`.
+- `telegram_chat_members(chat_id, user_id, username, first_name, last_name, is_bot)` — populated opportunistically from incoming Telegram messages to build @all mentions.
+
+### Configuration
+- Environment variables:
+    - `ENABLE_TELEGRAM` — `true|false` (default false).
+    - `TELEGRAM_TOKEN` — Bot token from @BotFather.
+- When disabled or token is missing, Telegram service does not start and the rest of the bot runs normally.
