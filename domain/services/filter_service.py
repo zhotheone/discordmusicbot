@@ -97,6 +97,10 @@ class FilterService:
             logger.error(f"Error removing filter '{filter_name}' from guild {guild_id}: {e}")
             return False
     
+    async def clear_filters(self, guild_id: int) -> bool:
+        """Remove all filters from the guild's audio."""
+        return await self.clear_all_filters(guild_id)
+    
     async def clear_all_filters(self, guild_id: int) -> bool:
         """Remove all filters from the guild's audio."""
         try:

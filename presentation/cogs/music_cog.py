@@ -14,6 +14,7 @@ from domain.entities.playlist import RepeatMode
 from infrastructure.audio.sources.youtube import YouTubeSource
 from infrastructure.audio.sources.spotify import SpotifySource
 from utils.validators import validate_volume
+from presentation.views.music_controls import MusicControlView
 
 logger = logging.getLogger(__name__)
 
@@ -132,7 +133,12 @@ class MusicCog(commands.Cog):
                         inline=True
                     )
                     
-                    await loading_msg.edit(embed=embed)
+                    # Add control panel for playlist playback
+                    if task.loaded_tracks:
+                        control_view = MusicControlView(self.container, interaction.guild.id, task.loaded_tracks[0])
+                        await loading_msg.edit(embed=embed, view=control_view)
+                    else:
+                        await loading_msg.edit(embed=embed)
                     
                     # Skip the normal track adding logic since progressive loader handles it
                     return
@@ -219,7 +225,9 @@ class MusicCog(commands.Cog):
                     
                     # Only send this if we haven't already sent the playlist message
                     if not (self.youtube_source.is_supported_url(query) and self.youtube_source.is_playlist_url(query)):
-                        await interaction.followup.send(embed=embed)
+                        # Create and send the control panel view
+                        control_view = MusicControlView(self.container, interaction.guild.id, track)
+                        await interaction.followup.send(embed=embed, view=control_view)
                 else:
                     # Multiple tracks - show summary (if not already sent playlist message)
                     if not (self.youtube_source.is_supported_url(query) and self.youtube_source.is_playlist_url(query)):
@@ -440,7 +448,9 @@ class MusicCog(commands.Cog):
                 inline=True
             )
             
-            await interaction.followup.send(embed=embed)
+            # Add control panel
+            control_view = MusicControlView(self.container, interaction.guild.id, current_track)
+            await interaction.followup.send(embed=embed, view=control_view)
             
         except Exception as e:
             logger.error(f"Error in nowplaying command: {e}")

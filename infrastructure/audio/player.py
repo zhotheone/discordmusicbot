@@ -1,13 +1,13 @@
 import asyncio
 import logging
-from typing import Optional
+from typing import Optional, Dict
 
 import discord
 from discord import FFmpegPCMAudio, FFmpegOpusAudio, PCMVolumeTransformer
 import yt_dlp
 
 from core.dependency_injection import DIContainer
-from core.events import EventBus
+from core.events import EventBus, Events
 from domain.entities.track import Track
 from domain.services.user_service import UserService
 
@@ -28,12 +28,20 @@ class AudioPlayer:
         self.current_source: Optional[discord.AudioSource] = None
         self.volume_transformer: Optional[PCMVolumeTransformer] = None
         self.current_volume: float = 0.5  # Default volume (will be overridden by user settings)
+        self.active_filters: Dict[str, object] = {}  # Active audio filters
+        self._applying_filters: bool = False  # Flag to prevent recursive filter application
+        
         # Store the main event loop for cross-thread communication
         try:
             self.main_loop = asyncio.get_running_loop()
         except RuntimeError:
             self.main_loop = None
             logger.warning(f"No running event loop found during AudioPlayer initialization for guild {guild_id}")
+        
+        # Subscribe to filter events
+        self.event_bus.subscribe(Events.FILTER_APPLIED, self._on_filter_applied)
+        self.event_bus.subscribe(Events.FILTER_REMOVED, self._on_filter_removed)
+        self.event_bus.subscribe("filters_cleared", self._on_filters_cleared)
     
     async def play(self, track: Track) -> None:
         """Play a track."""
@@ -63,12 +71,19 @@ class AudioPlayer:
                 logger.error(f"Could not extract audio stream URL for: {track.title}")
                 return
             
+            # Build filter chain from active filters
+            filter_chain = self._build_ffmpeg_filter_chain()
+            
             # Configure FFmpeg options for better audio quality and streaming
-            # Remove volume filter from FFmpeg since we'll handle it with PCMVolumeTransformer
             ffmpeg_options = {
                 'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5 -nostdin',
                 'options': '-vn'  # -vn removes video
             }
+            
+            # Add filters to FFmpeg options if any are active
+            if filter_chain:
+                ffmpeg_options['options'] += f' -af "{filter_chain}"'
+                logger.info(f"Applying FFmpeg filters for guild {self.guild_id}: {filter_chain}")
             
             # Create base audio source with the extracted stream URL
             base_source = FFmpegPCMAudio(audio_stream_url, **ffmpeg_options)
@@ -197,6 +212,11 @@ class AudioPlayer:
         self.current_source = None
         self.volume_transformer = None
         
+        # Don't publish track ended event if we're in the middle of applying filters
+        if self._applying_filters:
+            logger.debug(f"Playback finished during filter application for guild {self.guild_id} - skipping track ended event")
+            return
+        
         # Schedule async event publishing from a different thread
         if current_track:
             try:
@@ -219,3 +239,92 @@ class AudioPlayer:
     async def _on_playback_finished_async(self, track) -> None:
         """Handle async part of playback finished callback."""
         await self.event_bus.publish("track_ended", guild_id=self.guild_id, track=track)
+    
+    async def _on_filter_applied(self, guild_id: int, filter_name: str, filter_instance: object) -> None:
+        """Handle filter applied event."""
+        if guild_id != self.guild_id or self._applying_filters:
+            return
+            
+        self.active_filters[filter_name] = filter_instance
+        logger.info(f"Filter '{filter_name}' applied to AudioPlayer for guild {guild_id}")
+        
+        # If we're currently playing, restart playback with filters
+        if self.is_playing() and self.current_track and not self._applying_filters:
+            await self._restart_with_filters()
+    
+    async def _on_filter_removed(self, guild_id: int, filter_name: str) -> None:
+        """Handle filter removed event."""
+        if guild_id != self.guild_id or self._applying_filters:
+            return
+            
+        if filter_name in self.active_filters:
+            del self.active_filters[filter_name]
+            logger.info(f"Filter '{filter_name}' removed from AudioPlayer for guild {guild_id}")
+            
+            # If we're currently playing, restart playback without this filter
+            if self.is_playing() and self.current_track and not self._applying_filters:
+                await self._restart_with_filters()
+    
+    async def _on_filters_cleared(self, guild_id: int, removed_filters: list) -> None:
+        """Handle all filters cleared event."""
+        if guild_id != self.guild_id or self._applying_filters:
+            return
+            
+        self.active_filters.clear()
+        logger.info(f"All filters cleared from AudioPlayer for guild {guild_id}")
+        
+        # If we're currently playing, restart playback without filters
+        if self.is_playing() and self.current_track and not self._applying_filters:
+            await self._restart_with_filters()
+    
+    async def _restart_with_filters(self) -> None:
+        """Restart current track with applied filters."""
+        if not self.current_track or not self.voice_client or self._applying_filters:
+            return
+            
+        try:
+            # Set flag to prevent recursive calls and track ended events
+            self._applying_filters = True
+            
+            # Store current track and position (if we had position tracking)
+            track_to_replay = self.current_track
+            
+            # Stop current playback (won't trigger track ended event due to flag)
+            if self.voice_client.is_playing():
+                self.voice_client.stop()
+            
+            # Small delay to ensure cleanup
+            await asyncio.sleep(0.2)
+            
+            # Replay with filters
+            await self.play(track_to_replay)
+            
+        except Exception as e:
+            logger.error(f"Error restarting track with filters for guild {self.guild_id}: {e}")
+        finally:
+            # Always clear the flag
+            self._applying_filters = False
+    
+    def _build_ffmpeg_filter_chain(self) -> str:
+        """Build FFmpeg filter chain from active filters."""
+        if not self.active_filters:
+            return ""
+            
+        filter_parts = []
+        
+        for filter_name, filter_instance in self.active_filters.items():
+            try:
+                # Get FFmpeg filter string from filter instance
+                if hasattr(filter_instance, 'get_ffmpeg_filter'):
+                    filter_str = filter_instance.get_ffmpeg_filter()
+                    if filter_str:
+                        filter_parts.append(filter_str)
+                        
+            except Exception as e:
+                logger.error(f"Error building FFmpeg filter for {filter_name}: {e}")
+        
+        if filter_parts:
+            # Combine filters with comma separation
+            return ",".join(filter_parts)
+            
+        return ""
